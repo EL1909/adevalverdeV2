@@ -1,0 +1,35 @@
+@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@300..700&family=Montserrat:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+/* Identidad del sitio anterior (static/css/base.css): lujo oscuro con dorado,
+   Quicksand para títulos y Montserrat para textos. */
+@theme {
+  --font-title: "Quicksand", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Montserrat", ui-sans-serif, system-ui, sans-serif;
+
+  --color-ink: #0a0a0a;
+  --color-gold: #D4AF37;
+  --color-gold-light: #F2C94C;
+  --color-bone: #F5F5F5;
+  --color-mist: #B0B0B0;
+}
+
+@layer base {
+  body {
+    @apply bg-ink text-bone font-sans antialiased;
+    background-image: linear-gradient(rgba(10, 10, 10, 0.82), rgba(10, 10, 10, 0.92)),
+      url('/images/coherencia/fondo.jpeg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    min-height: 100dvh;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-title;
+  }
+}
+
+.glass {
+  @apply bg-black/50 backdrop-blur-md border border-white/10;
+}
