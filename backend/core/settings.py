@@ -46,6 +46,20 @@ ALLOWED_HOSTS = _csv_env(
     'ALLOWED_HOSTS', 'localhost,127.0.0.1,adelavalverde.info,www.adelavalverde.info'
 )
 
+# Detrás de nginx con HTTPS. Sin la cabecera del proxy, Django ve la petición
+# como http y el login del admin falla por CSRF (el Origin es https).
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+CSRF_TRUSTED_ORIGINS = _csv_env(
+    'CSRF_TRUSTED_ORIGINS', 'https://adelavalverde.info,https://www.adelavalverde.info'
+)
+# Cookies solo por HTTPS fuera de desarrollo. La redirección a HTTPS la hace
+# nginx; SECURE_SSL_REDIRECT queda para el caso de servir sin él.
+SESSION_COOKIE_SECURE = CSRF_COOKIE_SECURE = not DEBUG
+SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT') == 'True'
+# HSTS: dejar en 0 en staging; en producción, tras comprobar que todo va por
+# HTTPS, subir (ej. 31536000). Es difícil de revertir en los navegadores.
+SECURE_HSTS_SECONDS = int(os.environ.get('SECURE_HSTS_SECONDS', 0))
+
 
 # Application definition
 
@@ -59,9 +73,10 @@ INSTALLED_APPS = [
     # Third party
     'rest_framework',
     'corsheaders',
-    # Backbone. evz_calendars: Adela ofrece asesorías con cita; necesita
-    # evz_crm (Appointment.client). evz_sync (EsfuerzoVZ) se añade en la
-    # fase de despliegue.
+    # Backbone. evz_calendars: Adela ofrece asesorías con cita y cobro
+    # (evz_calendars.booking, activo porque está evz_payments); evz_crm
+    # guarda a cada persona que reserva como lead/cliente. evz_sync
+    # (EsfuerzoVZ) se añade en la fase de despliegue.
     'evz_core',
     'evz_store',
     'evz_treasury',
@@ -71,7 +86,6 @@ INSTALLED_APPS = [
     # Propias del cliente
     'accounts',
     'content',
-    'bookings',
     'legacy',
 ]
 
@@ -178,6 +192,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+# collectstatic copia aquí los estáticos del admin; nginx los sirve en /static/.
+STATIC_ROOT = BASE_DIR / 'static_root'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
@@ -208,19 +224,18 @@ EVZ_STORE_RECEIPT_PATH = '/pedido/{token}'
 EVZ_STORE_VERIFY_PATH = '/verificar/{token}'
 EVZ_PAYMENTS_RETURN_PATH = '/carrito'
 # El recibo público incluye la cita del pedido.
-EVZ_PAYMENTS_RECEIPT_EXTRA = 'bookings.services.receipt_extra'
+EVZ_PAYMENTS_RECEIPT_EXTRA = 'evz_calendars.booking.services.receipt_extra'
 EVZ_PAYMENTS_SUBSCRIPTION_RETURN_PATH = '/cuenta/suscripcion?id={id}'
 EVZ_PAYMENTS_SUBSCRIPTION_CANCEL_PATH = '/planes'
 PAYPAL_PRODUCT_CATEGORY = 'EDUCATIONAL_AND_TEXTBOOKS'
-# Un pago manual (Zelle, transferencia, USDT) retiene el horario de la cita
-# mientras Adela lo verifica.
-MANUAL_PAYMENT_HOLD_HOURS = int(os.environ.get('MANUAL_PAYMENT_HOLD_HOURS', 48))
 # A dónde van las respuestas de los clientes a los correos del sitio.
 EVZ_MAIL_REPLY_TO = os.environ.get('EVZ_MAIL_REPLY_TO', '')
 
 # Google Calendar para la agenda (evz_calendars). Sin archivo, la
-# disponibilidad ignora el calendario de Google.
+# disponibilidad ignora el calendario de Google y no se crean eventos.
 GOOGLE_SERVICE_ACCOUNT_FILE = os.environ.get('GOOGLE_SERVICE_ACCOUNT_FILE', '') or None
+# Cada cita confirmada crea su evento en el calendario de Adela.
+EVZ_CALENDARS_GOOGLE_EVENTS = True
 
 # Web Push (evz_core.push). Generar con `manage.py vapid_keys`; sin claves,
 # las notificaciones solo quedan en el admin.
@@ -228,12 +243,17 @@ VAPID_PUBLIC_KEY = os.environ.get('VAPID_PUBLIC_KEY', '')
 VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY', '')
 VAPID_CLAIM_EMAIL = os.environ.get('VAPID_CLAIM_EMAIL', 'info@adelavalverde.info')
 
-# Reservas de asesoría (app bookings).
-# Minutos que una cita sin pagar retiene el horario mientras se paga.
-BOOKING_HOLD_MINUTES = int(os.environ.get('BOOKING_HOLD_MINUTES', 30))
+# Reservas de asesoría (evz_calendars.booking).
+EVZ_BOOKING_KIND = 'asesoria'
+EVZ_BOOKING_LABEL = 'Asesoría'
+EVZ_BOOKING_EMAIL_EXTRA = 'Antes de la sesión recibirás los datos para conectarte.'
+# Minutos que una cita sin pagar retiene el horario mientras se paga; con
+# pago manual (Zelle, transferencia, USDT), horas mientras Adela lo verifica.
+EVZ_BOOKING_HOLD_MINUTES = int(os.environ.get('BOOKING_HOLD_MINUTES', 30))
+EVZ_BOOKING_MANUAL_HOLD_HOURS = int(os.environ.get('MANUAL_PAYMENT_HOLD_HOURS', 48))
 # Antelación mínima para reservar y días hacia adelante que se ofrecen.
-BOOKING_MIN_NOTICE_HOURS = int(os.environ.get('BOOKING_MIN_NOTICE_HOURS', 24))
-BOOKING_HORIZON_DAYS = int(os.environ.get('BOOKING_HORIZON_DAYS', 60))
+EVZ_BOOKING_MIN_NOTICE_HOURS = int(os.environ.get('BOOKING_MIN_NOTICE_HOURS', 24))
+EVZ_BOOKING_HORIZON_DAYS = int(os.environ.get('BOOKING_HORIZON_DAYS', 60))
 
 # Integración con EsfuerzoVZ. El token lo emite EsfuerzoVZ y es un secreto,
 # por eso vive aquí y no en BusinessProfile. Los datos de negocio (razón

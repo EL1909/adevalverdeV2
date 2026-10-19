@@ -182,6 +182,23 @@ Pendiente:
   PDF), citas, horario semanal y bloqueos.
 - [x] 39 tests.
 
+### Fase 3.7 — Agenda en el backbone, cita manual y leads ✅ (2026-10-16, local)
+
+- [x] **evz_backbone v1.5.0**: la app `bookings` pasa a `evz_calendars.booking` (reserva
+  pagada, retención, eventos en Google Calendar con `EVZ_CALENDARS_GOOGLE_EVENTS`, `.ics`),
+  configurable con `EVZ_BOOKING_*`. V2 ya no tiene app propia de reservas; la migración
+  de datos de la agenda de Adela pasa a `accounts.0002`.
+- [x] `evz_crm.services`: cada reserva crea o enlaza la ficha del cliente como lead
+  (`Nuevo Lead`). Al primer pago pasa a `Cliente`; también se puede marcar a mano.
+- [x] Cita manual desde el panel: cortesía, ya pagada (registra el ingreso) o pendiente
+  (recibo con los datos de pago, no vence sola). Fuera de horario solo si se confirma;
+  nunca encima de otra cita.
+- [x] `/cuenta` → **Calendario**: FullCalendar con el panel Detalle | + Nueva cita (como
+  MCnails). Nueva pestaña **Clientes**: directorio con filtro Leads/Clientes, ficha
+  editable, etiquetas, notas e historial de citas y pedidos.
+- [x] 55 tests (15 nuevos).
+- Pendiente: `manage.py link_appointment_clients` sobre la base real tras importar.
+
 ### Fase 3.5 — Asesorías y libros (siguiente)
 
 - Mentoría 1:1: 90 min, $222 (duración desde el panel → pasa a Asesorías).
@@ -204,8 +221,34 @@ etiquetados por necesidad) que reutilizan Llave, Jericó y Bóveda.
 
 ### Fase 5 — Despliegue
 
-1. Postgres en la VM de Adela; `DATABASE_URL` en `.env`.
-2. Gunicorn + nginx: `frontend/dist` como SPA, `/api` y `/admin` a Django.
-   `location ~ ^/media/.*/private/ { deny all; }` (PDFs y comprobantes).
-3. Importación final de datos y redirecciones de URLs antiguas (`/store/…`, `/test-coherencia/`, `/bio/`).
-4. `evz_sync` hacia EsfuerzoVZ.
+Preparado (2026-10-19): settings de producción (`SECURE_PROXY_SSL_HEADER`,
+`CSRF_TRUSTED_ORIGINS`, cookies seguras, HSTS por `.env`, `STATIC_ROOT`),
+`gunicorn` en requirements, `deploy.sh` y `deploy/` (nginx, systemd).
+
+**Datos:** `import_legacy` corre una sola vez y lo depurado a mano en local
+(productos, CMS, agenda, clientes) no se reproduce reimportando. Por eso la
+base de producción es un `pg_dump` de la local (`adevalverde_v2_b`) más
+`backend/media`; lo que entre en el sitio viejo después del snapshot
+(2026-10-13) se pasa a mano en el corte.
+
+1. Staging en `v2.adelavalverde.info` (registro DNS A → VM), con el sitio viejo intacto:
+   - `sudo apt install postgresql`; crear usuario y base `adevalverde`.
+   - Clonar en `~/projects/adevalverdeV2/adevalverdeV2`, venv en `../venv`
+     (la VM necesita deploy key para `EL1909/evz_backbone`).
+   - `.env` de producción con `DATABASE_URL`, `DEBUG=False`, hosts de staging,
+     **PayPal sandbox** y calendario de prueba (o sin `GOOGLE_SERVICE_ACCOUNT_FILE`).
+   - Mac: `pg_dump -Fc --no-owner --no-acl adevalverde_v2_b > v2.dump` y
+     `rsync backend/media/`; VM: `pg_restore --no-owner -d adevalverde …`, `migrate`
+     (no debe haber migraciones pendientes).
+   - systemd + nginx + `certbot --nginx -d v2.adelavalverde.info`, luego `./deploy.sh`.
+   - Validar: compra, descarga, reserva, panel, correo por relay, push.
+2. Corte:
+   - Sitio viejo sin checkout; snapshot nuevo de `db.sqlite3` y pasar a V2 los
+     usuarios, pedidos y citas posteriores al 2026-10-13.
+   - nginx: `server_name adelavalverde.info www…` a V2, el viejo a `old.adelavalverde.info`;
+     quitar `X-Robots-Tag`; `.env` con hosts finales y PayPal live; webhook live.
+   - `link_appointment_clients`; redirecciones de URLs antiguas (`/store/…`,
+     `/test-coherencia/`, `/bio/`).
+   - Tras unos días estable: `SECURE_HSTS_SECONDS`, apagar el sitio viejo
+     (guardar su `db.sqlite3` y `media`).
+3. `evz_sync` hacia EsfuerzoVZ.

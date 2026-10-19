@@ -10,7 +10,7 @@ from evz_store.models import Category, Order, Product
 from rest_framework.test import APIClient
 
 from accounts.models import User
-from bookings import gcal
+from evz_calendars import gcal
 from evz_payments import paypal
 from tests.test_payments import captured
 
@@ -26,7 +26,7 @@ def at(day, hour):
     return datetime.datetime.combine(day, datetime.time(hour), tzinfo=business_tz())
 
 
-@override_settings(FRONTEND_URL='https://adela.test', BOOKING_HOLD_MINUTES=30)
+@override_settings(FRONTEND_URL='https://adela.test', EVZ_BOOKING_HOLD_MINUTES=30)
 @mock.patch.object(gcal, 'delete_event', return_value=True)
 @mock.patch.object(gcal, 'create_event', return_value='EVENT-1')
 class BookingTests(TestCase):
@@ -36,7 +36,7 @@ class BookingTests(TestCase):
         configured.start()
         self.addCleanup(configured.stop)
         # Los correos salen por EsfuerzoVZ: aquí se interceptan.
-        relay = mock.patch('bookings.services.send_relay_email', return_value=True)
+        relay = mock.patch('evz_calendars.booking.services.send_relay_email', return_value=True)
         self.mail = relay.start()
         self.addCleanup(relay.stop)
         store_relay = mock.patch('evz_core.mail_relay.send_relay_email', return_value=True)

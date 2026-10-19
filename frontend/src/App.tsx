@@ -20,6 +20,7 @@ import { SubscriptionReturn } from './pages/SubscriptionReturn';
 import { Bio } from './pages/Bio';
 import { School } from './pages/School';
 import { Legal } from './pages/Legal';
+import { Capabilities } from './pages/Capabilities';
 import { PRIVACY, TERMS } from './content/legal';
 
 export default function App() {
@@ -29,6 +30,7 @@ export default function App() {
         <ContentProvider>
         <CartProvider>
             <Routes>
+              <Route path="capacidades" element={<Capabilities />} />
               <Route element={<Layout />}>
                 <Route index element={<Home />} />
                 <Route path="sobre-mi" element={<Bio />} />

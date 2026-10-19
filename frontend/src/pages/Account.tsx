@@ -1,18 +1,22 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
-import { LogOut } from 'lucide-react';
+import { Loader2, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { OrderHistory } from '../components/OrderHistory';
 import { MyBookings, MyDownloads, MySubscriptions } from '../components/AccountSections';
 import { PushToggle } from '../components/PushToggle';
-import { CalendarAdmin } from '../components/staff/CalendarAdmin';
 import { StoreAdmin } from '../components/staff/StoreAdmin';
 import { cn } from '../lib/utils';
+
+// Paneles de staff aparte: FullCalendar pesa y el público nunca lo usa.
+const CalendarAdmin = lazy(() => import('../components/staff/CalendarAdmin').then(m => ({ default: m.CalendarAdmin })));
+const ClientsAdmin = lazy(() => import('../components/staff/ClientsAdmin').then(m => ({ default: m.ClientsAdmin })));
 
 const TABS = [
   { id: 'perfil', label: 'Perfil' },
   { id: 'tienda', label: 'Tienda' },
   { id: 'calendario', label: 'Calendario' },
+  { id: 'clientes', label: 'Clientes' },
 ];
 
 const Profile: React.FC = () => {
@@ -53,12 +57,13 @@ export const Account: React.FC = () => {
   const [params, setParams] = useSearchParams();
   if (!isAuthenticated) return <Navigate to="/" replace />;
 
-  // Tienda y Calendario son el panel de Adela: solo para el staff.
+  // Tienda, Calendario y Clientes son el panel de Adela: solo para el staff.
   const staff = !!user?.is_staff;
   const tab = staff && TABS.some(t => t.id === params.get('tab')) ? params.get('tab')! : 'perfil';
 
   return (
-    <section className="max-w-4xl mx-auto px-4 py-16 space-y-8">
+    // Calendario y Clientes van a dos columnas: necesitan más ancho.
+    <section className={cn('mx-auto px-4 py-16 space-y-8', tab === 'calendario' || tab === 'clientes' ? 'max-w-7xl' : 'max-w-4xl')}>
       <div className="flex items-center justify-between">
         <h1 className="text-4xl">Mi cuenta</h1>
         <button onClick={logout} className="text-sm text-mist hover:text-gold flex items-center gap-2">
@@ -80,7 +85,10 @@ export const Account: React.FC = () => {
 
       {tab === 'perfil' && <Profile />}
       {tab === 'tienda' && <StoreAdmin />}
-      {tab === 'calendario' && <CalendarAdmin />}
+      <Suspense fallback={<Loader2 className="animate-spin text-gold" />}>
+        {tab === 'calendario' && <CalendarAdmin />}
+        {tab === 'clientes' && <ClientsAdmin />}
+      </Suspense>
     </section>
   );
 };

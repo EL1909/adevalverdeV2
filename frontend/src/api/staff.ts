@@ -3,6 +3,13 @@
 import type { ManualMethod } from './payments';
 import type { Order, StoreProduct } from './store';
 
+/** Error de la API con el status y el cuerpo (p. ej. `can_force` en un 409 de la cita manual). */
+export class ApiError extends Error {
+  constructor(message: string, public status: number, public data: Record<string, unknown> = {}) {
+    super(message);
+  }
+}
+
 async function call<T>(token: string, url: string, init: RequestInit = {}): Promise<T> {
   const isForm = init.body instanceof FormData;
   const res = await fetch(url, {
@@ -19,7 +26,7 @@ async function call<T>(token: string, url: string, init: RequestInit = {}): Prom
     const fieldErrors = typeof data === 'object' && data
       ? Object.entries(data).filter(([k]) => k !== 'error' && k !== 'detail').map(([k, v]) => `${k}: ${([] as string[]).concat(v as string).join(' ')}`)
       : [];
-    throw new Error(data.error || data.detail || fieldErrors.join(' · ') || `Error ${res.status}`);
+    throw new ApiError(data.error || data.detail || fieldErrors.join(' · ') || `Error ${res.status}`, res.status, data);
   }
   return data as T;
 }
@@ -34,6 +41,11 @@ export const listProducts = (t: string) => call<StoreProduct[]>(t, '/api/store/p
 export const listCategories = (t: string) => call<Category[]>(t, '/api/store/categories/');
 export const createCategory = (t: string, name: string) =>
   call<Category>(t, '/api/store/categories/', { method: 'POST', body: json({ name }) });
+export const renameCategory = (t: string, id: number, name: string) =>
+  call<Category>(t, `/api/store/categories/${id}/`, { method: 'PATCH', body: json({ name }) });
+/** El backend responde 409 si la categoría aún tiene productos. */
+export const deleteCategory = (t: string, id: number) =>
+  call<void>(t, `/api/store/categories/${id}/`, { method: 'DELETE' });
 
 /** Alta o edición; FormData porque lleva imagen y archivo descargable. */
 export const saveProduct = (t: string, data: FormData, id?: number) =>
@@ -90,9 +102,14 @@ export interface CalendarEvent {
     customer_phone?: string;
     services?: string[];
     order_id?: number | null;
-    notes?: { author_email: string | null; text: string; date: string }[];
+    client_id?: number | null;
+    client_tags?: string[];
+    source?: '' | 'web' | 'staff';
+    notes?: Note[];
   };
 }
+
+export interface Note { author_email: string | null; text: string; date: string }
 
 export interface WeeklySchedule {
   id: number;
@@ -127,3 +144,79 @@ export const createBlock = (t: string, data: { start: string; end: string; reaso
   call<TimeBlock>(t, '/api/calendars/blocks/', { method: 'POST', body: json(data) });
 export const deleteBlock = (t: string, id: number) =>
   call<void>(t, `/api/calendars/blocks/${id}/`, { method: 'DELETE' });
+
+// ── Cita manual ─────────────────────────────────────────────────────────────
+
+export type ManualPaymentKind = 'courtesy' | 'paid' | 'pending';
+
+export interface ManualOptions {
+  timezone: string;
+  currency: string;
+  services: { id: number; name: string; price: string; minutes: number }[];
+  paid_methods: { value: string; label: string }[];
+  manual_methods: { id: number; name: string }[];
+}
+
+export interface ManualBookingInput {
+  start: string; // "YYYY-MM-DDTHH:MM" en hora de Madrid
+  end?: string;
+  service?: number;
+  title?: string;
+  client_id?: number;
+  customer_name?: string;
+  customer_email?: string;
+  customer_phone?: string;
+  payment: ManualPaymentKind;
+  paid_method?: string;
+  manual_method?: number;
+  send_email: boolean;
+  notes?: string;
+  force?: boolean;
+}
+
+export const getManualOptions = (t: string) => call<ManualOptions>(t, '/api/calendars/appointments/manual/');
+export const createManualBooking = (t: string, data: ManualBookingInput) =>
+  call<{ id: number; status: string; client_id: number | null; receipt: string | null }>(
+    t, '/api/calendars/appointments/manual/', { method: 'POST', body: json(data) });
+
+// ── Clientes y leads (evz_crm) ──────────────────────────────────────────────
+
+export const LEAD_TAG = 'Nuevo Lead';
+export const CLIENT_TAG = 'Cliente';
+
+export interface CrmClient {
+  id: number;
+  user: number | null;
+  has_account: boolean;
+  name: string;
+  phone: string;
+  email: string;
+  address: string;
+  city: string;
+  tags: string[];
+  notes: Note[];
+  preferred_contact: 'whatsapp' | 'email' | 'phone';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ClientHistory {
+  appointments: { id: number; title: string; start: string; end: string; status: string; order_id: number | null }[];
+  orders: { id: number; date: string; status: string; total: string }[];
+  currency: string;
+}
+
+export const listClients = (t: string, params: { search?: string; tag?: string } = {}) => {
+  const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v) as [string, string][]).toString();
+  return call<CrmClient[]>(t, `/api/crm/clients/${qs ? `?${qs}` : ''}`);
+};
+export const getClient = (t: string, id: number) => call<CrmClient>(t, `/api/crm/clients/${id}/`);
+export const updateClient = (t: string, id: number, data: Partial<Pick<CrmClient, 'name' | 'email' | 'phone' | 'city' | 'address' | 'tags' | 'preferred_contact'>>) =>
+  call<CrmClient>(t, `/api/crm/clients/${id}/`, { method: 'PATCH', body: json(data) });
+export const addClientNote = (t: string, id: number, text: string) =>
+  call<CrmClient>(t, `/api/crm/clients/${id}/message/`, { method: 'POST', body: json({ text }) });
+export const promoteClient = (t: string, id: number) =>
+  call<CrmClient>(t, `/api/crm/clients/${id}/promote/`, { method: 'POST' });
+export const clientHistory = (t: string, id: number) => call<ClientHistory>(t, `/api/crm/clients/${id}/history/`);
+export const addAppointmentNote = (t: string, id: number, text: string) =>
+  call<unknown>(t, `/api/calendars/appointments/${id}/message/`, { method: 'POST', body: json({ text }) });

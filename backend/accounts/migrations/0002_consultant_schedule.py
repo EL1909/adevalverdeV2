@@ -1,6 +1,9 @@
 """
 Agenda de Adela: un único miembro del equipo, horario de lunes a viernes
 (9–19, editable en el admin) y las citas sin asignar pasan a su agenda.
+
+Venía de la app bookings (reemplazada por evz_calendars.booking en v1.5.0).
+Es idempotente: en una base donde ya corrió, no cambia nada.
 """
 
 from datetime import time
@@ -27,6 +30,7 @@ def forwards(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
+        ('accounts', '0001_initial'),
         ('evz_core', '0012_teammember_email'),
         ('evz_calendars', '0007_appointmentphoto'),
     ]

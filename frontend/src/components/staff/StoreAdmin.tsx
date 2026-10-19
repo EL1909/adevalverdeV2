@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Check, FileText, Loader2, Pencil, Plus, X } from 'lucide-react';
+import { ArrowLeft, Check, FileText, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react';
 import {
-  addOrderNote, cancelOrder, confirmManualPayment, createCategory, listCategories, listManualPayments, listOrders,
-  listProducts, openProof, rejectManualPayment, saveProduct, type Category, type ManualPayment,
+  addOrderNote, cancelOrder, confirmManualPayment, createCategory, deleteCategory, listCategories, listManualPayments, listOrders,
+  listProducts, openProof, rejectManualPayment, renameCategory, saveProduct, type Category, type ManualPayment,
 } from '../../api/staff';
 import type { Order, StoreProduct } from '../../api/store';
 import { useAuth } from '../../context/AuthContext';
@@ -187,16 +187,17 @@ const Orders: React.FC = () => {
 const ProductForm: React.FC<{
   product: StoreProduct | null;
   categories: Category[];
+  initialCategory?: number | null;
   onCategory: (c: Category) => void;
   onSaved: (p: StoreProduct) => void;
   onClose: () => void;
-}> = ({ product, categories, onCategory, onSaved, onClose }) => {
+}> = ({ product, categories, initialCategory, onCategory, onSaved, onClose }) => {
   const { token } = useAuth();
   const [form, setForm] = useState({
     name: product?.name ?? '',
     description: product?.description ?? '',
     price: product?.price ?? '',
-    category: String(product?.category ?? categories[0]?.id ?? ''),
+    category: String(product?.category ?? initialCategory ?? categories[0]?.id ?? ''),
     duration: product?.duration ?? '',
     is_active: product?.is_active ?? true,
     is_digital: product?.is_digital ?? false,
@@ -281,11 +282,76 @@ const ProductForm: React.FC<{
   );
 };
 
+/** Card de categoría: abre sus productos; el lápiz permite renombrarla o borrarla (solo si está vacía). */
+const CategoryCard: React.FC<{
+  category: Category;
+  count: number;
+  onOpen: () => void;
+  onRenamed: (c: Category) => void;
+  onDeleted: () => void;
+}> = ({ category, count, onOpen, onRenamed, onDeleted }) => {
+  const { token } = useAuth();
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(category.name);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const run = async (fn: () => Promise<void>) => {
+    setBusy(true); setError(null);
+    try { await fn(); } catch (e: any) { setError(e.message); } finally { setBusy(false); }
+  };
+
+  const save = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = name.trim();
+    if (!token || !trimmed) return;
+    run(async () => { onRenamed(await renameCategory(token, category.id, trimmed)); setEditing(false); });
+  };
+
+  const remove = () => {
+    if (!token || !confirm(`¿Borrar la categoría «${category.name}»?`)) return;
+    run(async () => { await deleteCategory(token, category.id); onDeleted(); });
+  };
+
+  if (editing) {
+    return (
+      <form onSubmit={save} className="glass rounded-2xl p-3 space-y-2 border border-gold/50">
+        <input autoFocus required value={name} onChange={e => setName(e.target.value)} className={cn(inputClass, 'p-2')} />
+        <div className="flex flex-wrap gap-2">
+          <button disabled={busy} className="px-3 py-1 rounded-full bg-gold text-ink text-sm font-semibold disabled:opacity-50">Guardar</button>
+          <button type="button" onClick={() => { setEditing(false); setName(category.name); setError(null); }}
+            className="px-3 py-1 rounded-full border border-white/15 text-sm text-mist">Cancelar</button>
+          <button type="button" disabled={busy || count > 0} onClick={remove}
+            title={count > 0 ? 'Mueve sus productos a otra categoría para poder borrarla' : undefined}
+            className="ml-auto p-1 text-red-200 hover:text-red-100 disabled:opacity-30 disabled:cursor-not-allowed" aria-label="Borrar categoría">
+            <Trash2 size={16} />
+          </button>
+        </div>
+        {count > 0 && <p className="text-xs text-mist">Para borrarla, primero mueve sus {count} producto(s) a otra categoría.</p>}
+        <ErrorBox error={error} />
+      </form>
+    );
+  }
+
+  return (
+    <div className="glass rounded-2xl border border-transparent hover:border-gold/50 transition-colors flex items-start">
+      <button onClick={onOpen} className="flex-1 min-w-0 p-4 text-left">
+        <p className="text-gold truncate">{category.name}</p>
+        <p className="text-sm text-mist">{count} {count === 1 ? 'producto' : 'productos'}</p>
+      </button>
+      <button onClick={() => setEditing(true)} className="p-3 text-mist hover:text-gold" aria-label={`Editar categoría ${category.name}`}>
+        <Pencil size={14} />
+      </button>
+    </div>
+  );
+};
+
 const Products: React.FC = () => {
   const { token } = useAuth();
   const [products, setProducts] = useState<StoreProduct[] | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [editing, setEditing] = useState<StoreProduct | null | 'new'>(null);
+  const [selected, setSelected] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -294,39 +360,87 @@ const Products: React.FC = () => {
     listCategories(token).then(setCategories).catch(e => setError(e.message));
   }, [token]);
 
+  // Recuento por categoría (incluye los no publicados: staff los ve todos).
+  const counts = useMemo(() => {
+    const m = new Map<number, number>();
+    (products ?? []).forEach(p => m.set(p.category, (m.get(p.category) ?? 0) + 1));
+    return m;
+  }, [products]);
+
   const saved = (p: StoreProduct) => {
     setProducts(prev => (prev?.some(x => x.id === p.id) ? prev.map(x => (x.id === p.id ? p : x)) : [p, ...(prev ?? [])]));
     setEditing(null);
+    setSelected(p.category);
+  };
+
+  const renamed = (c: Category) => {
+    setCategories(cs => cs.map(x => (x.id === c.id ? c : x)));
+    setProducts(prev => prev?.map(p => (p.category === c.id ? { ...p, category_name: c.name } : p)) ?? null);
+  };
+
+  const newCategory = async () => {
+    const name = prompt('Nombre de la categoría nueva:')?.trim();
+    if (!name || !token) return;
+    try {
+      const c = await createCategory(token, name);
+      setCategories(cs => [...cs, c]);
+    } catch (e: any) { setError(e.message); }
   };
 
   if (!products) return <Loader2 className="animate-spin text-gold" />;
+  const category = categories.find(c => c.id === selected);
+  const shown = products.filter(p => p.category === selected);
   return (
     <div className="space-y-3">
       <ErrorBox error={error} />
       {editing ? (
-        <ProductForm product={editing === 'new' ? null : editing} categories={categories}
+        <ProductForm product={editing === 'new' ? null : editing} categories={categories} initialCategory={selected}
           onCategory={c => setCategories(cs => [...cs, c])} onSaved={saved} onClose={() => setEditing(null)} />
       ) : (
-        <button onClick={() => setEditing('new')} className="px-4 py-2 rounded-full bg-gold text-ink text-sm font-semibold flex items-center gap-1">
-          <Plus size={14} /> Nuevo producto
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button onClick={() => setEditing('new')} className="px-4 py-2 rounded-full bg-gold text-ink text-sm font-semibold flex items-center gap-1">
+            <Plus size={14} /> Nuevo producto
+          </button>
+          {category && (
+            <button onClick={() => setSelected(null)} className="px-4 py-2 rounded-full border border-white/15 text-sm text-mist flex items-center gap-1 hover:border-gold/50">
+              <ArrowLeft size={14} /> Todas las categorías
+            </button>
+          )}
+        </div>
       )}
-      <ul className="glass rounded-2xl divide-y divide-white/10">
-        {products.map(p => (
-          <li key={p.id} className="p-3 flex items-center gap-3">
-            {p.image ? <img src={p.image} alt="" className="w-12 h-12 rounded-lg object-cover" /> : <div className="w-12 h-12 rounded-lg bg-white/5" />}
-            <div className="flex-1 min-w-0">
-              <p className={cn('truncate', !p.is_active && 'text-mist line-through')}>{p.name}</p>
-              <p className="text-xs text-mist">
-                {p.category_name} · {formatMoney(p.price)}
-                {p.duration && ` · ${p.duration}`}
-                {p.is_digital && (p.has_download ? ' · PDF' : ' · ⚠ falta el archivo')}
-              </p>
-            </div>
-            <button onClick={() => setEditing(p)} className="p-2 text-mist hover:text-gold" aria-label={`Editar ${p.name}`}><Pencil size={16} /></button>
-          </li>
-        ))}
-      </ul>
+      {!category ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {categories.map(c => (
+            <CategoryCard key={c.id} category={c} count={counts.get(c.id) ?? 0} onOpen={() => setSelected(c.id)}
+              onRenamed={renamed} onDeleted={() => setCategories(cs => cs.filter(x => x.id !== c.id))} />
+          ))}
+          <button onClick={newCategory}
+            className="rounded-2xl p-4 border border-dashed border-white/15 text-mist text-sm flex items-center justify-center gap-1 hover:border-gold/50 hover:text-gold">
+            <Plus size={14} /> Nueva categoría
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <h3 className="text-lg text-gold">{category.name} <span className="text-sm text-mist">· {shown.length}</span></h3>
+          {shown.length === 0 && <p className="text-sm text-mist">Esta categoría no tiene productos.</p>}
+          <ul className="glass rounded-2xl divide-y divide-white/10">
+            {shown.map(p => (
+              <li key={p.id} className="p-3 flex items-center gap-3">
+                {p.image ? <img src={p.image} alt="" className="w-12 h-12 rounded-lg object-cover" /> : <div className="w-12 h-12 rounded-lg bg-white/5" />}
+                <div className="flex-1 min-w-0">
+                  <p className={cn('truncate', !p.is_active && 'text-mist line-through')}>{p.name}</p>
+                  <p className="text-xs text-mist">
+                    {formatMoney(p.price)}
+                    {p.duration && ` · ${p.duration}`}
+                    {p.is_digital && (p.has_download ? ' · PDF' : ' · ⚠ falta el archivo')}
+                  </p>
+                </div>
+                <button onClick={() => setEditing(p)} className="p-2 text-mist hover:text-gold" aria-label={`Editar ${p.name}`}><Pencil size={16} /></button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 };

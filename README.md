@@ -21,12 +21,8 @@ adevalverdeV2/
 ├── backend/
 │   ├── accounts/   # propia: usuario por email, registro, login, perfil
 │   ├── content/    # propia: CMS de textos e imágenes editables (con revisiones)
-│   ├── catalog/    # propia: detalle de producto (digital, enlace externo) y descargas
-│   ├── payments/   # propia: PayPal (checkout, suscripciones, webhook) y acceso a apps
-│   ├── bookings/   # propia: reserva y pago de asesorías, eventos en Google Calendar
 │   ├── legacy/     # importación única desde el sitio anterior (import_legacy)
-│   ├── core/       # settings y urls
-│   └── templates/  # correos (recuperación de contraseña)
+│   └── core/       # settings y urls
 └── frontend/
     ├── public/     # imágenes, iconos, manifest y service worker (sw.js) de la PWA
     └── src/
@@ -79,9 +75,22 @@ Horario, bloqueos (vacaciones) y holgura entre citas se editan en `/admin/` →
 (ID del calendario) y con `GOOGLE_SERVICE_ACCOUNT_FILE` en `.env`; la cuenta de
 servicio necesita permiso **Hacer cambios en eventos** sobre ese calendario.
 Las asesorías son los productos activos con **duración** (ej. `60 min`).
+La reserva, el cobro y la cita manual son de `evz_calendars.booking` (backbone);
+cada persona que reserva queda en *Clientes* como lead hasta su primer pago.
+Las citas anteriores se enlazan con `manage.py link_appointment_clients`.
 
-## Producción (notas)
+## Producción
 
-- El servidor web debe devolver `index.html` para cualquier ruta del frontend
-  (`try_files $uri /index.html`) y servir `sw.js` con `Cache-Control: no-cache`.
-- `/api/`, `/admin/`, `/static/` y `/media/` van a Django.
+Archivos en [deploy/](deploy/): `nginx.conf` (SPA, `/api` y `/admin` a
+gunicorn, `/media/.../private/` bloqueado, `sw.js` sin caché) y
+`gunicorn-adevalverdeV2.service` (puerto 8003). En la VM:
+
+```
+~/projects/adevalverdeV2/
+├── adevalverdeV2/   # este repo (backend/.env, backend/media, service_account.json)
+└── venv/
+```
+
+Cada actualización: `./deploy.sh` (o `FRONTEND=skip ./deploy.sh` si la VM no
+tiene Node y `dist` se sube desde el Mac). Ver la fase 5 del ROADMAP para el
+alta inicial y el corte.

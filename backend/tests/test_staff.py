@@ -14,7 +14,7 @@ from evz_store.models import Category, Order, Product
 from rest_framework.test import APIClient
 
 from accounts.models import User
-from bookings import gcal
+from evz_calendars import gcal
 
 MEDIA = tempfile.mkdtemp()
 
@@ -55,6 +55,20 @@ class StaffStoreTests(TestCase):
         # El público ve el producto, no la ruta del archivo.
         self.api.force_authenticate(None)
         self.assertNotIn('download_file', self.api.get(f'/api/store/products/{product.pk}/').data)
+
+    def test_category_with_products_cannot_be_deleted(self):
+        Product.objects.create(name='Libro', description='', price=Decimal('5'), category=self.cat)
+        self.api.force_authenticate(self.client_user)
+        self.assertEqual(self.api.delete(f'/api/store/categories/{self.cat.pk}/').status_code, 403)
+        self.api.force_authenticate(self.staff)
+        res = self.api.delete(f'/api/store/categories/{self.cat.pk}/')
+        self.assertEqual(res.status_code, 409)
+        self.assertTrue(Product.objects.exists())
+        res = self.api.patch(f'/api/store/categories/{self.cat.pk}/', {'name': 'Libros impresos'}, format='json')
+        self.assertEqual(res.status_code, 200, res.data)
+        empty = Category.objects.create(name='Vacía')
+        self.assertEqual(self.api.delete(f'/api/store/categories/{empty.pk}/').status_code, 204)
+        self.assertFalse(Category.objects.filter(pk=empty.pk).exists())
 
     def test_staff_edits_price_without_touching_the_file(self):
         self.api.force_authenticate(self.staff)

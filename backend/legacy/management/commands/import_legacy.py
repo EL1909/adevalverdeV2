@@ -29,7 +29,7 @@ from django.core.management.color import no_style
 from django.db import connection, transaction
 from django.utils import timezone
 
-from bookings import services as bookings
+from evz_calendars.booking import services as bookings
 from evz_core.models import BusinessProfile
 from evz_calendars.models import Appointment, AppointmentItem, CalendarSettings
 from evz_store.models import Category, Download, Order, OrderItem, Product
@@ -342,7 +342,7 @@ class Command(BaseCommand):
             cal.save()
 
         used_orders = set()
-        consultant = bookings.consultant()
+        consultant = bookings.booking_team_member()
         for row in self.rows('SELECT * FROM calendars_appointment ORDER BY id'):
             product = Product.objects.filter(pk=row['product_id']).first()
             customer = self.user_map.get(row['customer_id'])
@@ -360,7 +360,7 @@ class Command(BaseCommand):
             if status == 'pending':
                 status = 'cancelled'
             appt = Appointment.objects.create(
-                order=order, team_member=consultant, kind=bookings.KIND,
+                order=order, team_member=consultant, kind=bookings.kind(), source='web',
                 title=product.name if product else '',
                 customer_name=(customer.get_full_name() or customer.email) if customer else 'Sin cliente',
                 customer_email=customer.email if customer else '',
@@ -371,6 +371,11 @@ class Command(BaseCommand):
             )
             Appointment.objects.filter(pk=appt.pk).update(created_at=as_utc(row['created_at']))
             AppointmentItem.objects.create(appointment=appt, product=product)
+            if customer:
+                bookings.link_client(appt, user=customer, tags=['Sitio anterior'],
+                                     note='Importado del sitio anterior.')
+                if order and order.status == 'completed' and order.total_amount > 0:
+                    bookings.promote_client(appt, f'Pagó en el sitio anterior (pedido #{order.pk}).')
             self.counts['citas'] += 1
 
     # ── Cierre ──────────────────────────────────────────────────────────────

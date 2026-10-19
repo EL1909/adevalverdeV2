@@ -16,9 +16,11 @@ urlpatterns = [
     # desactivado (EVZ_STORE_PUBLIC_ORDER_CREATE = False).
     path(f'{P}api/store/', include('evz_store.urls')),
     path(f'{P}api/payments/', include('evz_payments.urls')),
-    path(f'{P}api/bookings/', include('bookings.urls')),
-    # Agenda de Adela (solo staff): citas, horario semanal y bloqueos.
-    path(f'{P}api/calendars/', include('bookings.staff_urls')),
+    path(f'{P}api/bookings/', include('evz_calendars.booking.urls')),
+    # Agenda de Adela (solo staff): citas, cita manual, horario y bloqueos.
+    path(f'{P}api/calendars/', include('evz_calendars.booking.staff_urls')),
+    # Directorio de clientes y leads (solo staff).
+    path(f'{P}api/crm/', include('evz_crm.urls')),
 ]
 
 if settings.DEBUG:

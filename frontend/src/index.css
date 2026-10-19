@@ -15,6 +15,11 @@
 }
 
 @layer base {
+  /* Controles nativos (fecha, hora, selects, scroll) en su versión oscura. */
+  :root {
+    color-scheme: dark;
+  }
+
   body {
     @apply bg-ink text-bone font-sans antialiased;
     background-image: linear-gradient(rgba(10, 10, 10, 0.82), rgba(10, 10, 10, 0.92)),
@@ -32,4 +37,36 @@
 
 .glass {
   @apply bg-black/50 backdrop-blur-md border border-white/10;
+}
+
+/* FullCalendar del panel (/cuenta → Calendario) sobre el tema oscuro. */
+.staff-calendar .fc {
+  --fc-border-color: rgba(255, 255, 255, 0.1);
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: rgba(255, 255, 255, 0.04);
+  --fc-list-event-hover-bg-color: rgba(212, 175, 55, 0.1);
+  --fc-today-bg-color: rgba(212, 175, 55, 0.08);
+  --fc-now-indicator-color: #D4AF37;
+  --fc-button-bg-color: transparent;
+  --fc-button-border-color: rgba(255, 255, 255, 0.15);
+  --fc-button-text-color: #B0B0B0;
+  --fc-button-hover-bg-color: rgba(212, 175, 55, 0.1);
+  --fc-button-hover-border-color: rgba(212, 175, 55, 0.6);
+  --fc-button-active-bg-color: #D4AF37;
+  --fc-button-active-border-color: #D4AF37;
+  font-size: 0.85rem;
+}
+.staff-calendar .fc .fc-button { border-radius: 9999px; text-transform: capitalize; }
+.staff-calendar .fc .fc-button-primary:not(:disabled).fc-button-active,
+.staff-calendar .fc .fc-button-primary:not(:disabled):active { color: #0a0a0a; font-weight: 600; }
+.staff-calendar .fc .fc-toolbar-title { @apply font-title text-gold text-lg capitalize; }
+.staff-calendar .fc .fc-col-header-cell-cushion,
+.staff-calendar .fc .fc-daygrid-day-number,
+.staff-calendar .fc .fc-timegrid-slot-label-cushion { color: #B0B0B0; text-transform: capitalize; }
+.staff-calendar .fc .fc-timegrid-slot:hover,
+.staff-calendar .fc .fc-daygrid-day:hover { background-color: rgba(212, 175, 55, 0.05); cursor: pointer; }
+.staff-calendar .fc .fc-list-day-cushion { background: rgba(255, 255, 255, 0.04); }
+.staff-calendar .fc .fc-highlight { background: rgba(212, 175, 55, 0.2); }
+@media (max-width: 640px) {
+  .staff-calendar .fc .fc-toolbar { flex-direction: column; gap: 0.5rem; }
 }

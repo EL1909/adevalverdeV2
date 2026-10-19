@@ -71,10 +71,22 @@ export const Layout: React.FC = () => {
         <Outlet />
       </main>
 
-      <footer className="border-t border-white/10 py-8 text-center text-xs text-mist space-x-4">
-        <span>© {new Date().getFullYear()} Adela Valverde</span>
-        <Link to="/privacidad" className="hover:text-gold">Privacidad</Link>
-        <Link to="/terminos" className="hover:text-gold">Términos</Link>
+      <footer className="border-t border-white/10">
+        <div className="py-8 text-center text-xs text-mist space-x-4">
+          <span>© {new Date().getFullYear()} Adela Valverde</span>
+          <Link to="/privacidad" className="hover:text-gold">Privacidad</Link>
+          <Link to="/terminos" className="hover:text-gold">Términos</Link>
+        </div>
+        <div className="border-t border-white/10">
+          <div className="max-w-6xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-mist/70">
+            <a href="/capacidades" target="_blank" rel="noreferrer" className="font-semibold hover:text-gold transition-colors">
+              Capacidades de este website
+            </a>
+            <a href="https://esfuerzovz.com" target="_blank" rel="noreferrer" className="hover:text-gold transition-colors">
+              Desarrollado por EsfuerzoVZ
+            </a>
+          </div>
+        </div>
       </footer>
 
       {canEdit && (
