@@ -83,7 +83,7 @@ Las citas anteriores se enlazan con `manage.py link_appointment_clients`.
 
 Archivos en [deploy/](deploy/): `nginx.conf` (SPA, `/api` y `/admin` a
 gunicorn, `/media/.../private/` bloqueado, `sw.js` sin caché) y
-`gunicorn-adevalverdeV2.service` (puerto 8003). En la VM:
+`gunicorn-adevalverdeV2.service` (puerto 8010). En la VM:
 
 ```
 ~/projects/adevalverdeV2/

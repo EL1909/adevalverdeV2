@@ -45,6 +45,32 @@ fi
 echo "==> evz-backbone $EVZ_TAG"
 
 python manage.py migrate --noinput
+
+# ── UN SOLO USO: borrar esta sección cuando ya se haya corrido en producción ──
+# Las cuentas importadas del sitio anterior no tienen ficha en el directorio
+# de clientes (evz_crm): se crean como lead, por la misma vía que una reserva,
+# y como cliente si ya tienen un pedido pagado. Solo toca a quien aún no tiene
+# ficha, así que repetirla no duplica ni vuelve a marcar como lead a nadie.
+python manage.py shell <<'PY'
+from accounts.models import User
+from evz_crm.models import Client
+from evz_crm.services import LEAD_TAG, find_client, promote_to_client, resolve_or_create_client
+from evz_store.models import Order
+
+created = promoted = 0
+for u in User.objects.filter(is_staff=False).exclude(email__isnull=True).exclude(email=''):
+    if Client.objects.filter(user=u).exists() or find_client(u.email):
+        continue
+    phone = getattr(getattr(u, 'profile', None), 'phone', '')
+    c = resolve_or_create_client(u.get_full_name() or u.email, u.email, phone, tags=[LEAD_TAG],
+                                 user=u, note='Creado a partir de una cuenta existente.')
+    created += 1
+    paid = next((o for o in Order.objects.filter(user=u, status='completed') if o.total_amount > 0), None)
+    if paid:
+        promoted += promote_to_client(c, f'Pedido pagado #{paid.pk}.')
+print(f'==> Leads: {created} fichas nuevas, {promoted} como cliente')
+PY
+# ── fin de la sección de un solo uso ────────────────────────────────────────
 python manage.py collectstatic --noinput
 python manage.py check --deploy
 

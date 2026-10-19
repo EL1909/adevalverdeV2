@@ -1,19 +1,73 @@
 {\rtf1\ansi\ansicpg1252\cocoartf2870
 \cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fnil\fcharset0 Menlo-Regular;}
-{\colortbl;\red255\green255\blue255;}
-{\*\expandedcolortbl;;}
+{\colortbl;\red255\green255\blue255;\red0\green0\blue0;\red74\green0\blue255;}
+{\*\expandedcolortbl;;\csgray\c0;\cssrgb\c36733\c20484\c100000;}
 \paperw11900\paperh16840\margl1440\margr1440\vieww26840\viewh16960\viewkind0
 \pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
 
 \f0\fs32 \cf0 \
-\
 Notas AdelaValverde.info v2\
 \
+Postgresql-DB\
+User: adevalverde_admin\
+Pass: Elfv1909\
 \
 \
-EsfuerzoVZ is a partnership market for Venezuela's reconstruction. The Financial country\'92s muscle is already being re-shaped by remittances supporting small businesses; we register and verify that activity, based on data from each business's management software. \
 \
-Investors can take decisitio based on the showed activity or become partners, bringing capital and know-how from developed countries into Venezuela's recovery. The platform is in production, with real clients and closed projects: www.esfuerzovz.com.\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+\cf0 .env V2\
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+\cf0 \
+\
+SECRET_KEY=
+\fs30 \cf2 \CocoaLigature0 NSfsg08ZUIyNTQDpuqrXaTry9IcSRABnZkPQh74khNgHFL6XFsPkEKUb2mISW4euu2U\
+
+\fs32 \cf0 \CocoaLigature1 DEBUG=False\
+DATABASE_URL=postgres://adevalverde:CLAVE@localhost:5432/adevalverde\
+ALLOWED_HOSTS=v2.adelavalverde.info\
+CSRF_TRUSTED_ORIGINS=https://v2.adelavalverde.info\
+CORS_ALLOWED_ORIGINS=https://v2.adelavalverde.info\
+FRONTEND_URL=https://v2.adelavalverde.info\
+TIME_ZONE=Europe/Madrid\
+\
+# Sandbox mientras se prueba\
+PAYPAL_CLIENT_ID=\
+PAYPAL_SECRET=\
+PAYPAL_BASE_URL=https://api-m.sandbox.paypal.com\
+PAYPAL_WEBHOOK_ID=     # el del webhook de sandbox apuntando a v2.adelavalverde.info\
+\
+# Vac\'edo = no toca el calendario real de Adela. Para probarlo, ruta absoluta:\
+# /home/efrain19091/projects/adevalverdeV2/adevalverdeV2/backend/service_account.json\
+GOOGLE_SERVICE_ACCOUNT_FILE=\
+\
+EVZ_API_URL=https://esfuerzovz.com\
+EVZ_API_TOKEN=         # el de tu .env local\
+EVZ_MAIL_REPLY_TO=\
+\
+VAPID_PUBLIC_KEY=      # manage.py vapid_keys (una vez, y se conservan)\
+VAPID_PRIVATE_KEY=\
+VAPID_CLAIM_EMAIL=info@adelavalverde.info\
+\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\fs30 \cf2 \CocoaLigature0 VAPID_PUBLIC_KEY=BFLLXhE79S5x1N1Ql5g6yW2bIKiUBQKRgvfrsQpa1pmJc6iMGnave1vNCTCxh66gy1IKfFY3lZAouwWU__vsur8\
+VAPID_PRIVATE_KEY=zLUtQ_Y7nbIpSMsFpAath0Dq-3NDg9L3zpu_aZG7GLA
+\fs32 \cf0 \CocoaLigature1 \
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+\cf0 \
+\
+.env V1\
+\
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\fs30 \cf2 \CocoaLigature0 SECRET_KEY=django-insecure-uwtm#l90xtchb@r%^co2xt!t+gl=fa&55q^oq$hmol7v(0v8f5\
+PAYPAL_CLIENT_ID=BAAmQKRDtf9lHg5HX5NQzBeqepZl-XRBcl94YSJs-uxFWR1CSzgHFouWtvnkt0Fh8DipUFenmwGM5VJZ_8\
+PAYPAL_SECRET=ECchj6x-UxV638QSeP03Mme6_Imlf6rrbY5MGPvfHrMl2f9KB84NCJOGb8PIAS6fl9mBGjOyomInFm1N\
+PAYPAL_BASE_URL=\cf3 https://api-m.paypal.com
+\fs32 \cf0 \CocoaLigature1 \
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+\cf0 \
 \
 \
 \
@@ -51,12 +105,10 @@ GOOGLE_SERVICE_ACCOUNT_FILE = os.path.join(BASE_DIR, 'calendars', 'service_accou
 \
 \
 \
-\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
-\cf0 \
 \
 \
-\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
-\cf0 \
+\
+\
 \
 \
 \

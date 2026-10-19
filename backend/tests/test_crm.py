@@ -195,6 +195,22 @@ class BookingLeadTests(TestCase):
         events = self.api.get('/api/calendars/appointments/').json()
         self.assertEqual(events[0]['extendedProps']['client_tags'], ['Web', CLIENT_TAG])
 
+    def test_manual_client_from_panel(self, *_):
+        self.api.force_authenticate(self.staff)
+        res = self.api.post('/api/crm/clients/', {
+            'name': 'Carla', 'email': 'carla@example.org', 'phone': '', 'city': 'Madrid',
+            'tags': [LEAD_TAG], 'notes': 'Escribió por Instagram',
+        }, format='json')
+        self.assertEqual(res.status_code, 201)
+        self.assertEqual(res.json()['tags'], [LEAD_TAG])
+        self.assertEqual(res.json()['notes'][0]['text'], 'Escribió por Instagram')
+        self.assertEqual(res.json()['notes'][0]['author_email'], self.staff.email)
+        # Si después reserva, usa la misma ficha.
+        appt = self.web_booking(self.session, 9, email='Carla@example.org')
+        self.assertEqual(appt.client_id, res.json()['id'])
+        self.api.force_authenticate(User.objects.create_user(email='otra@example.org', password='x'))
+        self.assertEqual(self.api.post('/api/crm/clients/', {'name': 'X'}, format='json').status_code, 403)
+
     def test_link_command_for_old_appointments(self, *_):
         start = at(self.day, 10)
         order = Order.objects.create(customer_name='Ana', customer_email='ana@example.org', status='completed')

@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Loader2, Search, UserCheck, Users, X } from 'lucide-react';
+import { Loader2, Plus, Search, UserCheck, Users, X } from 'lucide-react';
 import {
-  CLIENT_TAG, LEAD_TAG, addClientNote, clientHistory, getClient, listClients, promoteClient, updateClient,
+  CLIENT_TAG, LEAD_TAG, addClientNote, clientHistory, createClient, getClient, listClients, promoteClient, updateClient,
   type ClientHistory, type CrmClient, type Note,
 } from '../../api/staff';
 import { useAuth } from '../../context/AuthContext';
@@ -199,6 +199,81 @@ const ClientDetail: React.FC<{ id: number; onChanged: (c: CrmClient) => void }> 
   );
 };
 
+// ── Alta manual ─────────────────────────────────────────────────────────────
+
+/**
+ * Ficha creada a mano (ej. alguien que escribió por Instagram). Antes de
+ * crearla busca por email y teléfono, como hacen las reservas, para no
+ * duplicar a una persona que ya está en el directorio.
+ */
+const NewClient: React.FC<{ onCreated: (c: CrmClient) => void; onOpen: (id: number) => void }> = ({ onCreated, onOpen }) => {
+  const { token } = useAuth();
+  const [form, setForm] = useState({ name: '', email: '', phone: '', city: '', notes: '' });
+  const [asClient, setAsClient] = useState(false);
+  const [existing, setExisting] = useState<CrmClient | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const findExisting = async () => {
+    const email = form.email.trim().toLowerCase();
+    const phone = form.phone.trim();
+    for (const q of [email, phone].filter(Boolean)) {
+      const match = (await listClients(token!, { search: q }))
+        .find(c => (email && c.email.toLowerCase() === email) || (phone && c.phone === phone));
+      if (match) return match;
+    }
+    return null;
+  };
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token) return;
+    setBusy(true);
+    setError(null);
+    setExisting(null);
+    try {
+      const dup = await findExisting();
+      if (dup) { setExisting(dup); return; }
+      onCreated(await createClient(token, {
+        name: form.name.trim(), email: form.email.trim(), phone: form.phone.trim(), city: form.city.trim(),
+        tags: [asClient ? CLIENT_TAG : LEAD_TAG], notes: form.notes.trim(),
+      }));
+    } catch (err: any) { setError(err.message); } finally { setBusy(false); }
+  };
+
+  const field = (key: keyof typeof form) => ({
+    value: form[key], onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setForm(f => ({ ...f, [key]: e.target.value })),
+  });
+
+  return (
+    <form onSubmit={submit} className="space-y-5">
+      <h3 className="text-2xl text-bone">Nueva ficha</h3>
+      <div className="grid sm:grid-cols-2 gap-3">
+        <label className="text-xs text-mist">Nombre<input required className={inputClass} {...field('name')} /></label>
+        <label className="text-xs text-mist">Email<input type="email" className={inputClass} {...field('email')} /></label>
+        <label className="text-xs text-mist">Teléfono / WhatsApp<input className={inputClass} {...field('phone')} /></label>
+        <label className="text-xs text-mist">Ciudad<input className={inputClass} {...field('city')} /></label>
+      </div>
+      <SubTabs value={asClient ? 'client' : 'lead'} onChange={v => setAsClient(v === 'client')} tabs={[
+        { id: 'lead', label: 'Lead' }, { id: 'client', label: 'Cliente' },
+      ]} />
+      <label className="block text-xs text-mist">Nota inicial (opcional)
+        <textarea rows={2} className={cn(inputClass, 'resize-none text-sm')} placeholder="Ej. escribió por Instagram, interesada en la mentoría" {...field('notes')} />
+      </label>
+      {existing && (
+        <div className="rounded-xl border border-gold/40 p-3 text-sm flex flex-wrap items-center justify-between gap-2">
+          <span>Ya existe una ficha con ese email o teléfono: <strong>{existing.name}</strong></span>
+          <button type="button" onClick={() => onOpen(existing.id)} className="text-gold underline">Abrir ficha</button>
+        </div>
+      )}
+      <ErrorBox error={error} />
+      <button disabled={busy || !form.name.trim()} className="px-5 py-2 rounded-full bg-gold text-ink text-sm font-semibold disabled:opacity-40">
+        {busy ? 'Guardando…' : 'Crear ficha'}
+      </button>
+    </form>
+  );
+};
+
 // ── Directorio ──────────────────────────────────────────────────────────────
 
 const FILTERS: Record<string, string | undefined> = { all: undefined, leads: LEAD_TAG, clients: CLIENT_TAG };
@@ -210,6 +285,7 @@ export const ClientsAdmin: React.FC = () => {
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const creating = params.get('client') === 'nueva';
   const selected = Number(params.get('client')) || null;
 
   useEffect(() => {
@@ -220,11 +296,15 @@ export const ClientsAdmin: React.FC = () => {
     return () => clearTimeout(id);
   }, [token, search, filter]);
 
-  const select = (id: number) => setParams({ tab: 'clientes', client: String(id) });
+  const select = (id: number | 'nueva') => setParams({ tab: 'clientes', client: String(id) });
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="glass rounded-3xl p-5 space-y-4 lg:max-h-[80vh] lg:overflow-y-auto">
+        <button onClick={() => select('nueva')}
+          className={cn('w-full flex items-center justify-center gap-2 px-4 py-2 rounded-full border border-gold/60 text-gold text-sm hover:bg-gold hover:text-ink', creating && 'bg-gold/10')}>
+          <Plus size={16} /> Nueva ficha
+        </button>
         <div className="relative">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-mist" />
           <input className={cn(inputClass, 'pl-9')} placeholder="Buscar por nombre, email o teléfono"
@@ -255,14 +335,20 @@ export const ClientsAdmin: React.FC = () => {
       </div>
 
       <div className="glass rounded-3xl p-6 lg:col-span-2">
-        {selected ? (
+        {creating ? (
+          <NewClient onOpen={select} onCreated={c => {
+            // Solo entra en la lista visible si encaja con el filtro actual.
+            if (!FILTERS[filter] || c.tags.includes(FILTERS[filter]!)) setClients(prev => [c, ...(prev ?? [])]);
+            select(c.id);
+          }} />
+        ) : selected ? (
           <ClientDetail key={selected} id={selected}
             onChanged={c => setClients(prev => prev?.map(x => (x.id === c.id ? c : x)) ?? null)} />
         ) : (
           <div className="flex flex-col items-center justify-center h-64 text-center">
             <Users size={32} className="text-mist/40 mb-4" />
             <p className="text-lg text-mist">Selecciona una persona</p>
-            <p className="text-sm text-mist/70 mt-1">Cada reserva crea su ficha como lead; al primer pago pasa a cliente.</p>
+            <p className="text-sm text-mist/70 mt-1">Cada reserva crea su ficha como lead; al primer pago pasa a cliente. También puedes crearla a mano.</p>
           </div>
         )}
       </div>

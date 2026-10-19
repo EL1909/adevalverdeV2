@@ -211,6 +211,9 @@ export const listClients = (t: string, params: { search?: string; tag?: string }
   return call<CrmClient[]>(t, `/api/crm/clients/${qs ? `?${qs}` : ''}`);
 };
 export const getClient = (t: string, id: number) => call<CrmClient>(t, `/api/crm/clients/${id}/`);
+/** `notes`, si viene, queda como primera nota del hilo (autor: quien la crea). */
+export const createClient = (t: string, data: Pick<CrmClient, 'name' | 'email' | 'phone' | 'city' | 'tags'> & { notes?: string }) =>
+  call<CrmClient>(t, '/api/crm/clients/', { method: 'POST', body: json(data) });
 export const updateClient = (t: string, id: number, data: Partial<Pick<CrmClient, 'name' | 'email' | 'phone' | 'city' | 'address' | 'tags' | 'preferred_contact'>>) =>
   call<CrmClient>(t, `/api/crm/clients/${id}/`, { method: 'PATCH', body: json(data) });
 export const addClientNote = (t: string, id: number, text: string) =>

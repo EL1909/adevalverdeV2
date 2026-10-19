@@ -2,7 +2,7 @@
 #   sudo cp deploy/gunicorn-adevalverdeV2.service /etc/systemd/system/
 #   sudo systemctl daemon-reload && sudo systemctl enable --now gunicorn-adevalverdeV2
 #
-# Puerto 8003: comprobar que está libre en la VM (sudo ss -ltnp).
+# Puerto 8010: comprobar que está libre en la VM (sudo ss -ltnp).
 # 2 workers bastan para el tráfico de Adela (~80 MB de RAM cada uno).
 
 [Unit]
@@ -15,7 +15,7 @@ Group=www-data
 WorkingDirectory=/home/efrain19091/projects/adevalverdeV2/adevalverdeV2/backend
 ExecStart=/home/efrain19091/projects/adevalverdeV2/venv/bin/gunicorn \
     --workers 2 --timeout 60 \
-    --bind 127.0.0.1:8003 \
+    --bind 127.0.0.1:8010 \
     core.wsgi:application
 Restart=on-failure
 

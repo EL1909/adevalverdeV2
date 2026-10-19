@@ -195,8 +195,9 @@ Pendiente:
   nunca encima de otra cita.
 - [x] `/cuenta` → **Calendario**: FullCalendar con el panel Detalle | + Nueva cita (como
   MCnails). Nueva pestaña **Clientes**: directorio con filtro Leads/Clientes, ficha
-  editable, etiquetas, notas e historial de citas y pedidos.
-- [x] 55 tests (15 nuevos).
+  editable, etiquetas, notas e historial de citas y pedidos. Alta manual de fichas
+  (lead o cliente, con nota inicial; avisa si el email o teléfono ya existe).
+- [x] 56 tests (16 nuevos).
 - Pendiente: `manage.py link_appointment_clients` sobre la base real tras importar.
 
 ### Fase 3.5 — Asesorías y libros (siguiente)
@@ -247,6 +248,8 @@ base de producción es un `pg_dump` de la local (`adevalverde_v2_b`) más
      usuarios, pedidos y citas posteriores al 2026-10-13.
    - nginx: `server_name adelavalverde.info www…` a V2, el viejo a `old.adelavalverde.info`;
      quitar `X-Robots-Tag`; `.env` con hosts finales y PayPal live; webhook live.
+   - `./deploy.sh` (su sección de un solo uso crea como lead a las cuentas sin
+     ficha en Clientes, también las del delta); después, borrar esa sección.
    - `link_appointment_clients`; redirecciones de URLs antiguas (`/store/…`,
      `/test-coherencia/`, `/bio/`).
    - Tras unos días estable: `SECURE_HSTS_SECONDS`, apagar el sitio viejo

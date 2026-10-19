@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useContent } from '../context/ContentContext';
 import { useCart } from '../context/CartContext';
 import { AuthModal } from './AuthModal';
+import { SocialLinks } from './SocialLinks';
 import { cn } from '../lib/utils';
 
 const NAV = [
@@ -72,10 +73,13 @@ export const Layout: React.FC = () => {
       </main>
 
       <footer className="border-t border-white/10">
-        <div className="py-8 text-center text-xs text-mist space-x-4">
-          <span>© {new Date().getFullYear()} Adela Valverde</span>
-          <Link to="/privacidad" className="hover:text-gold">Privacidad</Link>
-          <Link to="/terminos" className="hover:text-gold">Términos</Link>
+        <div className="max-w-6xl mx-auto px-4 py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-mist">
+          <div className="space-x-4">
+            <span>© {new Date().getFullYear()} Adela Valverde</span>
+            <Link to="/privacidad" className="hover:text-gold">Privacidad</Link>
+            <Link to="/terminos" className="hover:text-gold">Términos</Link>
+          </div>
+          <SocialLinks className="flex items-center gap-4" />
         </div>
         <div className="border-t border-white/10">
           <div className="max-w-6xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-mist/70">
