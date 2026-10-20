@@ -124,8 +124,9 @@ export const Layout: React.FC = () => {
               )}
             </Link>
             {isAuthenticated ? (
-              <NavLink to="/cuenta" className="flex items-center gap-2 text-sm text-mist hover:text-gold">
-                <User size={18} /> <span className="hidden sm:inline">{user?.first_name || 'Mi cuenta'}</span>
+              <NavLink to="/cuenta" title={user?.first_name || 'Mi cuenta'} aria-label="Mi cuenta"
+                className={({ isActive }) => cn('p-2', isActive ? 'text-gold' : 'text-mist hover:text-gold')}>
+                <User size={20} />
               </NavLink>
             ) : (
               <button onClick={() => setAuthOpen(true)} className="text-sm border border-gold/60 text-gold px-4 py-1.5 rounded-full hover:bg-gold hover:text-ink transition-colors">

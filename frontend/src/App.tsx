@@ -1,5 +1,5 @@
 import React from 'react';
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { BusinessProvider } from './context/BusinessContext';
 import { ContentProvider } from './context/ContentContext';
@@ -9,6 +9,8 @@ import { Layout } from './components/Layout';
 import { Home } from './pages/Home';
 import { AppsHub } from './pages/AppsHub';
 import { Store } from './pages/Store';
+import { ProductPage } from './pages/ProductPage';
+import { TestCoherencia } from './apps/test-coherencia/TestCoherencia';
 import { Consultations } from './pages/Consultations';
 import { Account } from './pages/Account';
 import { ResetPassword } from './pages/ResetPassword';
@@ -38,7 +40,11 @@ export default function App() {
                 <Route path="sobre-mi" element={<Bio />} />
                 <Route path="escuela" element={<School />} />
                 <Route path="apps" element={<AppsHub />} />
+                <Route path="apps/test-coherencia" element={<TestCoherencia />} />
+                {/* URL del sitio anterior */}
+                <Route path="test-coherencia" element={<Navigate to="/apps/test-coherencia" replace />} />
                 <Route path="tienda" element={<Store />} />
+                <Route path="libro/:slug" element={<ProductPage />} />
                 <Route path="asesorias" element={<Consultations />} />
                 <Route path="carrito" element={<Cart />} />
                 <Route path="pedido/:receipt" element={<Receipt />} />

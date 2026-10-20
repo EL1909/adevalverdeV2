@@ -1,13 +1,13 @@
 import React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Check, Loader2, ShoppingBag } from 'lucide-react';
-import { categoryLabel, categorySlug, type StoreProduct } from '../api/store';
+import { categoryLabel, categorySlug, productPath, type StoreProduct } from '../api/store';
 import { useBusiness } from '../context/BusinessContext';
 import { useCart } from '../context/CartContext';
 import { useCatalog } from '../context/CatalogContext';
 import { Editable } from '../components/Editable';
 import { formatMoney } from '../lib/money';
-import { cn } from '../lib/utils';
+import { cn, descriptionBox } from '../lib/utils';
 
 /** /tienda?categoria=<slug> muestra una categoría; sin ella, todo agrupado por categoría. */
 export const Store: React.FC = () => {
@@ -32,15 +32,20 @@ export const Store: React.FC = () => {
 
   const card = (p: StoreProduct) => (
     <article key={p.id} className="glass rounded-3xl overflow-hidden flex flex-col">
-      {p.image && <img src={p.image} alt="" className="aspect-[4/3] object-cover" />}
+      {p.image && (p.has_page
+        ? <Link to={productPath(p)}><img src={p.image} alt="" className="aspect-[4/3] w-full object-cover" /></Link>
+        : <img src={p.image} alt="" className="aspect-[4/3] object-cover" />)}
       <div className="p-6 flex-1 flex flex-col gap-3">
         <p className="text-xs uppercase tracking-widest text-mist">{labelOf(p)}{p.is_digital && ' · PDF'}</p>
-        <h3 className="text-xl text-gold">{p.name}</h3>
-        <p className="text-sm text-mist flex-1 line-clamp-4 whitespace-pre-line">{p.description}</p>
+        <h3 className="text-xl text-gold">
+          {p.has_page ? <Link to={productPath(p)} className="hover:text-gold-light">{p.name}</Link> : p.name}
+        </h3>
+        <div className="flex-1"><p className={cn('text-sm text-mist', descriptionBox)}>{p.description}</p></div>
         <div className="flex items-center justify-between gap-3 pt-2">
           <span className="text-bone font-semibold">
             {Number(p.price) === 0 ? 'Gratis' : formatMoney(p.price, business.currency || 'USD')}
           </span>
+          {p.has_page && <Link to={productPath(p)} className="text-sm text-gold hover:text-gold-light">Ver más</Link>}
         </div>
         <button
           onClick={() => add({ product_id: p.id, name: p.name, price: p.price, image: p.image, is_digital: p.is_digital })}

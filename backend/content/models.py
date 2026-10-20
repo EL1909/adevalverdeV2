@@ -30,6 +30,9 @@ class ContentBlock(models.Model):
     key = models.CharField(max_length=120, unique=True, validators=[key_validator])
     text = models.TextField(blank=True)
     image = models.ImageField(upload_to=block_image_path, null=True, blank=True)
+    # Encuadre de la imagen sin recortar el archivo: {'x': 0–100, 'y': 0–100, 'zoom': 1–4}.
+    # x/y es el punto de la imagen que queda a la vista (object-position); vacío = centrada.
+    framing = models.JSONField(default=dict, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
@@ -63,6 +66,7 @@ class ContentRevision(models.Model):
     block = models.ForeignKey(ContentBlock, on_delete=models.CASCADE, related_name='revisions')
     text = models.TextField(blank=True)
     image = models.CharField(max_length=255, blank=True)
+    framing = models.JSONField(default=dict, blank=True)
     edited_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='+',

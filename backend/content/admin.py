@@ -6,7 +6,7 @@ class ContentRevisionInline(admin.TabularInline):
     model = ContentRevision
     extra = 0
     can_delete = False
-    readonly_fields = ('text', 'image', 'edited_by', 'created_at')
+    readonly_fields = ('text', 'image', 'framing', 'edited_by', 'created_at')
 
 
 @admin.register(ContentBlock)

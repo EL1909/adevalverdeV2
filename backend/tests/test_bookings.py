@@ -49,6 +49,17 @@ class BookingTests(TestCase):
                                            duration='60 min', category=cat)
         self.user = User.objects.create_user(email='ana@example.org', password='x', first_name='Ana')
         self.day = next_weekday()
+        # La sesión gratuita es para quien compró un libro (EVZ_BOOKING_FREE_REQUIRES_PURCHASE).
+        self.book_product = Product.objects.create(name='El Misterio de la Sal', description='', price=Decimal('9.99'),
+                                                   category=cat, is_digital=True)
+        self.bought_book('invitada@example.org')
+        self.bought_book(self.user.email, user=self.user)
+
+    def bought_book(self, email, user=None, status='completed', product=None):
+        order = Order.objects.create(customer_name='Compradora', customer_email=email, user=user, status=status)
+        product = product or self.book_product
+        order.items.create(product=product, description=product.name, unit_price=product.price, quantity=1)
+        return order
 
     def slots(self, product=None, day=None):
         res = self.api.get('/api/bookings/slots/', {'service': (product or self.session).pk,
@@ -114,6 +125,25 @@ class BookingTests(TestCase):
         res = self.book(self.free, start=at(self.day, 12), customer_email='INVITADA@example.org')
         self.assertEqual(res.status_code, 409)
 
+    def test_free_session_only_for_book_buyers(self, *_):
+        stranger = {'customer_email': 'nueva@example.org'}
+        res = self.book(self.free, **stranger)
+        self.assertEqual(res.status_code, 409)
+        self.assertIn('compraron un libro', res.data['error'])
+        # Un pedido sin pagar o de algo que no es un libro no cuenta.
+        self.bought_book('nueva@example.org', status='pending')
+        self.bought_book('nueva@example.org', product=self.session)
+        self.assertEqual(self.book(self.free, **stranger).status_code, 409)
+        # Comprado como invitada (otro uso de mayúsculas): cuenta por email.
+        self.bought_book('Nueva@Example.org')
+        self.assertEqual(self.book(self.free, **stranger).status_code, 201)
+
+    def test_free_session_counts_purchases_of_the_account(self, *_):
+        other = User.objects.create_user(email='luz@example.org', password='x')
+        self.bought_book('otro-email@example.org', user=other)
+        self.api.force_authenticate(other)
+        self.assertEqual(self.book(self.free).status_code, 201)
+
     def test_rejects_unoffered_times(self, *_):
         self.assertEqual(self.book(start=at(self.day, 10) + datetime.timedelta(minutes=15)).status_code, 409)
         self.assertEqual(self.book(start=at(self.day, 20)).status_code, 409)
@@ -153,7 +183,7 @@ class BookingTests(TestCase):
         self.api.force_authenticate(self.user)
         with mock.patch.object(paypal, 'create_order', return_value={'id': 'PAYPAL-1'}):
             receipt = self.book().data['receipt']
-        order = Order.objects.get()
+        order = Appointment.objects.get().order
         with mock.patch.object(paypal, 'capture_order', return_value=captured(order)):
             self.api.post(f'/api/payments/checkout/{receipt}/capture/')
         handle_event({'event_type': 'PAYMENT.CAPTURE.REFUNDED', 'resource': {

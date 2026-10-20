@@ -8,7 +8,7 @@ import { PaymentOptions } from '../components/PaymentOptions';
 import { useAuth } from '../context/AuthContext';
 import { BUSINESS_TZ, differsFromBusiness, formatDate, formatTime } from '../lib/dates';
 import { formatMoney } from '../lib/money';
-import { cn } from '../lib/utils';
+import { cn, descriptionBox } from '../lib/utils';
 
 const WEEKDAYS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
 const inputClass = 'w-full p-3 rounded-xl border border-white/15 focus:outline-none focus:border-gold bg-black/40 text-bone placeholder:text-mist/60';
@@ -159,7 +159,7 @@ export const Consultations: React.FC = () => {
               >
                 <p className="text-lg">{s.name}</p>
                 <p className="text-sm text-mist flex items-center gap-2"><Clock size={14} /> {s.minutes} min</p>
-                {s.description && <p className="text-sm text-mist line-clamp-3">{s.description}</p>}
+                {s.description && <p className={cn('text-sm text-mist', descriptionBox)}>{s.description}</p>}
                 <p className="text-gold">{Number(s.price) === 0 ? 'Gratuita' : formatMoney(s.price, s.currency)}</p>
               </button>
             ))}

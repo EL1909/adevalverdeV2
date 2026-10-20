@@ -70,6 +70,23 @@ class StaffStoreTests(TestCase):
         self.assertEqual(self.api.delete(f'/api/store/categories/{empty.pk}/').status_code, 204)
         self.assertFalse(Category.objects.filter(pk=empty.pk).exists())
 
+    def test_product_page_slug_is_stable(self):
+        book = Product.objects.create(name='El Misterio de la Sal', description='', price=Decimal('9.99'), category=self.cat)
+        twin = Product.objects.create(name='El misterio de la sal', description='', price=Decimal('5'), category=self.cat)
+        self.assertEqual((book.slug, twin.slug), ('el-misterio-de-la-sal', 'el-misterio-de-la-sal-2'))
+
+        self.api.force_authenticate(self.staff)
+        res = self.api.patch(f'/api/store/products/{book.pk}/', {'has_page': True, 'name': 'La Sal', 'slug': 'otro'},
+                             format='json')
+        self.assertEqual(res.status_code, 200, res.data)
+        self.assertEqual(res.data['slug'], 'el-misterio-de-la-sal')  # renombrar no rompe el enlace
+
+        self.api.force_authenticate(None)
+        rows = self.api.get('/api/store/products/', {'slug': 'el-misterio-de-la-sal'}).data
+        self.assertEqual([r['id'] for r in rows], [book.pk])
+        self.assertTrue(rows[0]['has_page'])
+        self.assertEqual([r['id'] for r in self.api.get('/api/store/products/', {'has_page': 1}).data], [book.pk])
+
     def test_umbral_menu_is_chosen_and_ordered_by_staff(self):
         seminars = Category.objects.create(name='Seminarios', position=1)
         self.cat.position = 2

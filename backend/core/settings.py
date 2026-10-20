@@ -247,6 +247,11 @@ VAPID_CLAIM_EMAIL = os.environ.get('VAPID_CLAIM_EMAIL', 'info@adelavalverde.info
 EVZ_BOOKING_KIND = 'asesoria'
 EVZ_BOOKING_LABEL = 'Asesoría'
 EVZ_BOOKING_EMAIL_EXTRA = 'Antes de la sesión recibirás los datos para conectarte.'
+# La sesión de cortesía (cualquier asesoría gratuita) es para quien compró un libro (producto digital).
+EVZ_BOOKING_FREE_REQUIRES_PURCHASE = 'digital'
+EVZ_BOOKING_FREE_REQUIRES_PURCHASE_MESSAGE = (
+    'Esta sesión es un regalo para quienes compraron un libro. Usa el email con el que hiciste tu compra.'
+)
 # Minutos que una cita sin pagar retiene el horario mientras se paga; con
 # pago manual (Zelle, transferencia, USDT), horas mientras Adela lo verifica.
 EVZ_BOOKING_HOLD_MINUTES = int(os.environ.get('BOOKING_HOLD_MINUTES', 30))

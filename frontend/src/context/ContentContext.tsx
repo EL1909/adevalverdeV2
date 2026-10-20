@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useRef, useState } from 'react';
-import { ContentBlock, ContentMap, fetchContent, saveContent } from '../api/content';
+import { ContentBlock, ContentMap, ContentUpdate, fetchContent, saveContent } from '../api/content';
 import { useAuth } from './AuthContext';
 
 interface ContentContextValue {
@@ -9,7 +9,7 @@ interface ContentContextValue {
   canEdit: boolean;
   editMode: boolean;
   setEditMode: (on: boolean) => void;
-  save: (key: string, data: { text: string } | { image: File }) => Promise<ContentBlock>;
+  save: (key: string, data: ContentUpdate) => Promise<ContentBlock>;
 }
 
 const ContentContext = createContext<ContentContextValue | undefined>(undefined);
@@ -32,7 +32,7 @@ export const ContentProvider: React.FC<{ children: React.ReactNode }> = ({ child
       });
   }, []);
 
-  const save = useCallback(async (key: string, data: { text: string } | { image: File }) => {
+  const save = useCallback(async (key: string, data: ContentUpdate) => {
     if (!token) throw new Error('Sesión expirada');
     const block = await saveContent(token, key, data);
     setBlocks(prev => ({ ...prev, [key]: block }));

@@ -207,24 +207,35 @@ Pendiente:
 - [x] Barra: logo → Sobre mí; **El Umbral ▾** (categorías que Adela marca y que tienen algo a
   la venta, con su nombre visible); **Escuela de Silencio ▾** (Escuela, Herramientas, Sesiones
   y mentorías); botón de inicio junto al carrito. Fuera: Inicio, Sobre mí, Tienda, Planes.
-- [x] Botones dorados como en el sitio anterior: **El Escáner** (`#` hasta la fase 4) y
+- [x] Botones dorados como en el sitio anterior: **El Escáner** (`#`; su destino se asigna al terminar la fase 4) y
   **Mentoría VIP** (`/asesorias?sesion=mentoria`: preselecciona la sesión cuyo nombre contiene «mentoria»).
 - [x] `/tienda?categoria=<slug>`: título y descripción de la categoría; sin filtro, todo agrupado.
 - [x] Panel → Tienda → Productos: nombre visible, descripción, «Mostrar en El Umbral» y orden ↑↓.
   En modo edición, El Umbral enlaza ahí («Elegir categorías»).
 - Pendiente: en la VM, Adela marca y nombra sus categorías (hoy ninguna está en el menú).
+- [x] CMS: **Ajustar encuadre** en las imágenes editables (arrastrar para mover, rueda o deslizador
+  para el zoom). Se guarda `ContentBlock.framing` (punto a la vista y zoom), no un recorte; queda en
+  las revisiones y una imagen nueva vuelve a centrarse. Portadas de productos: más adelante (backbone).
 
-### Fase 3.5 — Asesorías y libros (siguiente)
+### Fase 3.5 — Asesorías y libros ✅ (2026-10-20, local)
 
-- Mentoría 1:1: 90 min, $222 (duración desde el panel → pasa a Asesorías).
-- Sesión de cortesía de 15 min, gratis, solo para quien compró un libro (una vez por email).
-- Páginas propias de cada libro (sin Gamma).
+- [x] Mentoría 1:1: 90 min, $222 (duración desde el panel → pasa a Asesorías).
+- [x] Sesión de cortesía, gratis, solo para quien compró un libro (una vez por email):
+  **evz_backbone v1.7.0** `EVZ_BOOKING_FREE_REQUIRES_PURCHASE = 'digital'`. Cualquier asesoría
+  gratuita exige un pedido pagado con un producto digital, del mismo email o de la cuenta
+  (cuenta también quien compró como invitado). No depende del nombre del producto.
+- [x] Páginas propias (`/libro/<slug>`): Adela marca «Tiene página propia» en el panel. El slug
+  (v1.7.0, `Product.slug`) se crea una vez desde el nombre y no cambia al renombrar. Portada,
+  precio, compra (o «Reservar» si es asesoría), descripción y texto largo editable
+  (CMS `libro.<slug>.cuerpo`). La tienda enlaza a la página.
+- [x] Descripciones con sus saltos de línea, máx. 320 px con scroll (tienda, asesorías, página).
+- Pendiente en la VM: crear la sesión de cortesía (precio 0, «15 min») y marcar los libros con página.
 
 ### Fase 4 — Herramientas (una a una)
 
 | # | App | Nota |
 |---|---|---|
-| 0 | Test de la Coherencia | Portar el prototipo (`static/coherencia_app/test/main.tsx`) sin IA; sus CTA apuntan a productos 19, 15, 6, 8, 5 |
+| 0 | Test de la Coherencia | ✅ 2026-10-20 (local): `/apps/test-coherencia` (y `/test-coherencia` del sitio anterior). Sin IA; textos e imágenes editables (`test.*`); el destino de cada resultado y de la mentoría lo elige Adela en modo edición (`ProductCta`: página del libro o asesoría). Los IDs fijos del prototipo (19, 15, 6, 8, 5) no se usan: ya no correspondían (el CTA de La Sal apuntaba a Una Vasija Nueva) |
 | 1 | Escáner de la Coherencia | Modelo `Situation` (hechos, interpretaciones, emociones, suposiciones, faltantes, contradicciones, decisión, resultado), historial privado, límite gratis/Premium |
 | 2 | La Llave del Día | Contenido + registro de aplicación |
 | 3 | Centro Soberano | Registro de límites y compromisos, revisión semanal |

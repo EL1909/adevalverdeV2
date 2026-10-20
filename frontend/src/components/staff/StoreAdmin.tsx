@@ -5,7 +5,7 @@ import {
   addOrderNote, cancelOrder, confirmManualPayment, createCategory, deleteCategory, listCategories, listManualPayments, listOrders,
   listProducts, openProof, rejectManualPayment, saveProduct, updateCategory, type Category, type ManualPayment,
 } from '../../api/staff';
-import { categoryLabel, type Order, type StoreProduct } from '../../api/store';
+import { categoryLabel, productPath, type Order, type StoreProduct } from '../../api/store';
 import { useAuth } from '../../context/AuthContext';
 import { useCatalog } from '../../context/CatalogContext';
 import { formatMoney } from '../../lib/money';
@@ -204,6 +204,7 @@ const ProductForm: React.FC<{
     is_active: product?.is_active ?? true,
     is_digital: product?.is_digital ?? false,
     requires_shipping: product?.requires_shipping ?? false,
+    has_page: product?.has_page ?? false,
   });
   const [image, setImage] = useState<File | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -270,7 +271,15 @@ const ProductForm: React.FC<{
         <label className="flex items-center gap-2"><input type="checkbox" checked={form.is_active} onChange={e => set('is_active', e.target.checked)} /> Publicado</label>
         <label className="flex items-center gap-2"><input type="checkbox" checked={form.is_digital} onChange={e => set('is_digital', e.target.checked)} /> Digital (se descarga)</label>
         <label className="flex items-center gap-2"><input type="checkbox" checked={form.requires_shipping} onChange={e => set('requires_shipping', e.target.checked)} /> Requiere envío</label>
+        <label className="flex items-center gap-2"><input type="checkbox" checked={form.has_page} onChange={e => set('has_page', e.target.checked)} /> Tiene página propia</label>
       </div>
+      {form.has_page && (
+        <p className="text-xs text-mist">
+          {product?.slug
+            ? <>Su página: <a href={productPath(product)} target="_blank" rel="noreferrer" className="text-gold hover:underline">{productPath(product)}</a>. El texto largo se escribe en la propia página con «Editar textos».</>
+            : 'La dirección de su página se crea al guardar, a partir del nombre.'}
+        </p>
+      )}
       {form.is_digital && (
         <label className="block text-sm text-mist">Archivo que recibe el cliente (PDF){product?.has_download && ' — ya tiene uno; sube otro para reemplazarlo'}
           <input type="file" accept="application/pdf" className="block mt-1" onChange={e => setFile(e.target.files?.[0] ?? null)} />

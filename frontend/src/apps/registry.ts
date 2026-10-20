@@ -22,7 +22,7 @@ export const TOOL_APPS: ToolApp[] = [
     minutes: '5 min',
     price: 'Gratis',
     image: '/images/coherencia/portada2.jpg',
-    status: 'soon',
+    status: 'available',
   },
   {
     slug: 'escaner',

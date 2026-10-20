@@ -46,7 +46,8 @@ class ClientServiceTests(TestCase):
         self.assertEqual(len(c.notes), 1)
 
 
-@override_settings(FRONTEND_URL='https://adela.test')
+# La regla de la sesión de cortesía (solo compradores) se prueba en test_bookings.
+@override_settings(FRONTEND_URL='https://adela.test', EVZ_BOOKING_FREE_REQUIRES_PURCHASE=None)
 @mock.patch.object(gcal, 'delete_event', return_value=True)
 @mock.patch.object(gcal, 'create_event', return_value='EVENT-1')
 class BookingLeadTests(TestCase):

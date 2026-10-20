@@ -1,11 +1,17 @@
 const API_BASE = '/api/content';
 
+/** Encuadre de una imagen: punto a la vista (0–100 %) y zoom (1–4). Vacío = centrada. */
+export interface Framing { x: number; y: number; zoom: number }
+
 export interface ContentBlock {
   key: string;
   text: string;
   image: string | null;
+  framing: Framing | Record<string, never>;
   updated_at: string;
 }
+
+export type ContentUpdate = { text: string } | { image: File } | { framing: Framing | Record<string, never> };
 
 export type ContentMap = Record<string, ContentBlock>;
 
@@ -18,7 +24,7 @@ export const fetchContent = async (page: string): Promise<ContentMap> => {
 export const saveContent = async (
   token: string,
   key: string,
-  data: { text: string } | { image: File },
+  data: ContentUpdate,
 ): Promise<ContentBlock> => {
   const isImage = 'image' in data;
   let body: FormData | string;

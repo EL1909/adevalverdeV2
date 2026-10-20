@@ -42,8 +42,12 @@ class ContentBlockView(APIView):
             ContentRevision.objects.create(
                 block=block, text=block.text,
                 image=block.image.name if block.image else '',
+                framing=block.framing,
                 edited_by=block.updated_by,
             )
+        # Una imagen nueva no hereda el encuadre de la anterior.
+        if 'image' in request.FILES and 'framing' not in request.data:
+            block.framing = {}
         serializer = ContentBlockSerializer(
             block, data=request.data, partial=True, context={'request': request},
         )
