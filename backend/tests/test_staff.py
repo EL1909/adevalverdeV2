@@ -70,6 +70,26 @@ class StaffStoreTests(TestCase):
         self.assertEqual(self.api.delete(f'/api/store/categories/{empty.pk}/').status_code, 204)
         self.assertFalse(Category.objects.filter(pk=empty.pk).exists())
 
+    def test_umbral_menu_is_chosen_and_ordered_by_staff(self):
+        seminars = Category.objects.create(name='Seminarios', position=1)
+        self.cat.position = 2
+        self.cat.save()
+        data = {'display_name': 'Salitre de agua dulce', 'description': 'Libros impresos', 'show_in_menu': True}
+
+        self.api.force_authenticate(self.client_user)
+        self.assertEqual(self.api.patch(f'/api/store/categories/{self.cat.pk}/', data, format='json').status_code, 403)
+        self.api.force_authenticate(self.staff)
+        res = self.api.patch(f'/api/store/categories/{self.cat.pk}/', data, format='json')
+        self.assertEqual(res.status_code, 200, res.data)
+
+        # El menú se arma con la lista pública, que llega ordenada por `position`.
+        self.api.force_authenticate(None)
+        rows = self.api.get('/api/store/categories/').data
+        self.assertEqual([r['id'] for r in rows], [seminars.pk, self.cat.pk])
+        self.assertEqual(rows[1]['display_name'], 'Salitre de agua dulce')
+        self.assertTrue(rows[1]['show_in_menu'])
+        self.assertFalse(rows[0]['show_in_menu'])
+
     def test_staff_edits_price_without_touching_the_file(self):
         self.api.force_authenticate(self.staff)
         product = Product.objects.create(name='Libro', description='', price=Decimal('5'), category=self.cat)

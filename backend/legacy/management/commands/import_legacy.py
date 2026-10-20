@@ -190,7 +190,10 @@ class Command(BaseCommand):
 
     def import_catalog(self):
         for row in self.rows('SELECT * FROM store_category ORDER BY id'):
-            Category.objects.create(id=row['id'], name=row['name'])
+            Category.objects.create(
+                id=row['id'], name=row['name'],
+                display_name=row['display_name'] or '', description=row['description'] or '',
+            )
             self.counts['categorías'] += 1
 
         # Duración de los productos que se reservan como cita (ej. sesiones 1:1).
