@@ -27,6 +27,23 @@ export interface StoreProduct {
   download_file?: string | null;
 }
 
+export interface Category {
+  id: number;
+  name: string;
+  /** Lo que ve el público; vacío = `name`. */
+  display_name: string;
+  description: string;
+  /** Adela elige qué categorías van en «El Umbral». */
+  show_in_menu: boolean;
+  position: number;
+}
+
+export const categoryLabel = (c: Category) => c.display_name || c.name;
+
+/** `?categoria=` legible y estable: sale de `name`, no del nombre visible. */
+export const categorySlug = (c: Category) =>
+  c.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
 export interface DownloadInfo {
   token: string;
   product: string;
@@ -83,6 +100,9 @@ export interface Subscription {
 
 /** Lo que se compra desde el carrito: sin planes ni asesorías. */
 export const fetchStoreProducts = () => get<StoreProduct[]>('/products/?sellable=1', null, 'Error al cargar la tienda');
+
+/** Ordenadas por `position` (el backend ya las devuelve así). */
+export const fetchCategories = () => get<Category[]>('/categories/', null, 'Error al cargar las categorías');
 
 export const fetchMyOrders = (token: string) => get<Order[]>('/orders/mine/', token, 'Error al cargar tus pedidos');
 

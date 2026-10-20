@@ -4,6 +4,7 @@ import { AuthProvider } from './context/AuthContext';
 import { BusinessProvider } from './context/BusinessContext';
 import { ContentProvider } from './context/ContentContext';
 import { CartProvider } from './context/CartContext';
+import { CatalogProvider } from './context/CatalogContext';
 import { Layout } from './components/Layout';
 import { Home } from './pages/Home';
 import { AppsHub } from './pages/AppsHub';
@@ -29,6 +30,7 @@ export default function App() {
       <AuthProvider>
         <ContentProvider>
         <CartProvider>
+        <CatalogProvider>
             <Routes>
               <Route path="capacidades" element={<Capabilities />} />
               <Route element={<Layout />}>
@@ -50,6 +52,7 @@ export default function App() {
                 <Route path="*" element={<Placeholder title="Página no encontrada" text="El enlace que seguiste no existe." />} />
               </Route>
             </Routes>
+        </CatalogProvider>
         </CartProvider>
         </ContentProvider>
       </AuthProvider>

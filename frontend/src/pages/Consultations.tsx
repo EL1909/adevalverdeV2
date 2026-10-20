@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Clock, Loader2 } from 'lucide-react';
 import { createBooking, fetchDays, fetchServices, fetchSlots, type DaySlots, type Service, type Slot } from '../api/bookings';
 import { fetchPaymentsConfig, type PaymentsConfig } from '../api/payments';
@@ -62,9 +62,12 @@ const MonthCalendar: React.FC<{ days: string[]; selected: string | null; onSelec
   );
 };
 
+const normalize = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
 export const Consultations: React.FC = () => {
   const { user, token } = useAuth();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const [services, setServices] = useState<Service[] | null>(null);
   const [service, setService] = useState<Service | null>(null);
   const [days, setDays] = useState<string[] | null>(null);
@@ -79,7 +82,12 @@ export const Consultations: React.FC = () => {
   useEffect(() => {
     fetchServices().then(list => {
       setServices(list);
-      if (list.length === 1) setService(list[0]);
+      // ?sesion=mentoria (botón «Mentoría VIP»): elige la primera sesión cuyo nombre lo contiene.
+      // Por nombre y no por ID: los IDs de la base local y la de la VM no coinciden.
+      const wanted = normalize(params.get('sesion') ?? '');
+      const match = wanted ? list.find(s => normalize(s.name).includes(wanted)) : undefined;
+      if (match) setService(match);
+      else if (list.length === 1) setService(list[0]);
     }).catch(e => setError(e.message));
     fetchPaymentsConfig().then(setConfig).catch(() => undefined);
   }, []);

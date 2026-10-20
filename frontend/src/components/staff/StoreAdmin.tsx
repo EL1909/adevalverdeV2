@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Check, FileText, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowUp, Check, FileText, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import {
   addOrderNote, cancelOrder, confirmManualPayment, createCategory, deleteCategory, listCategories, listManualPayments, listOrders,
-  listProducts, openProof, rejectManualPayment, renameCategory, saveProduct, type Category, type ManualPayment,
+  listProducts, openProof, rejectManualPayment, saveProduct, updateCategory, type Category, type ManualPayment,
 } from '../../api/staff';
-import type { Order, StoreProduct } from '../../api/store';
+import { categoryLabel, type Order, type StoreProduct } from '../../api/store';
 import { useAuth } from '../../context/AuthContext';
+import { useCatalog } from '../../context/CatalogContext';
 import { formatMoney } from '../../lib/money';
 import { cn } from '../../lib/utils';
 
@@ -251,7 +253,7 @@ const ProductForm: React.FC<{
         <label className="text-sm text-mist">Categoría
           <div className="flex gap-2">
             <select className={inputClass} value={form.category} onChange={e => set('category', e.target.value)}>
-              {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {categories.map(c => <option key={c.id} value={c.id}>{categoryLabel(c)}</option>)}
             </select>
             <button type="button" onClick={newCategory} className="px-3 rounded-xl border border-white/15" aria-label="Nueva categoría"><Plus size={16} /></button>
           </div>
@@ -282,17 +284,24 @@ const ProductForm: React.FC<{
   );
 };
 
-/** Card de categoría: abre sus productos; el lápiz permite renombrarla o borrarla (solo si está vacía). */
+/**
+ * Card de categoría: abre sus productos; el lápiz edita nombre, nombre visible,
+ * descripción y si entra en «El Umbral» (borrar solo si está vacía); ↑↓ la ordenan.
+ */
 const CategoryCard: React.FC<{
   category: Category;
   count: number;
   onOpen: () => void;
-  onRenamed: (c: Category) => void;
+  onSaved: (c: Category) => void;
   onDeleted: () => void;
-}> = ({ category, count, onOpen, onRenamed, onDeleted }) => {
+  onMove?: { up?: () => void; down?: () => void };
+}> = ({ category, count, onOpen, onSaved, onDeleted, onMove }) => {
   const { token } = useAuth();
   const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(category.name);
+  const blank = () => ({
+    name: category.name, display_name: category.display_name, description: category.description, show_in_menu: category.show_in_menu,
+  });
+  const [form, setForm] = useState(blank);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -303,9 +312,9 @@ const CategoryCard: React.FC<{
 
   const save = (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmed = name.trim();
-    if (!token || !trimmed) return;
-    run(async () => { onRenamed(await renameCategory(token, category.id, trimmed)); setEditing(false); });
+    const data = { ...form, name: form.name.trim(), display_name: form.display_name.trim(), description: form.description.trim() };
+    if (!token || !data.name) return;
+    run(async () => { onSaved(await updateCategory(token, category.id, data)); setEditing(false); });
   };
 
   const remove = () => {
@@ -315,11 +324,26 @@ const CategoryCard: React.FC<{
 
   if (editing) {
     return (
-      <form onSubmit={save} className="glass rounded-2xl p-3 space-y-2 border border-gold/50">
-        <input autoFocus required value={name} onChange={e => setName(e.target.value)} className={cn(inputClass, 'p-2')} />
+      <form onSubmit={save} className="col-span-2 sm:col-span-3 glass rounded-2xl p-4 space-y-3 border border-gold/50">
+        <div className="grid sm:grid-cols-2 gap-3">
+          <label className="text-sm text-mist">Nombre interno
+            <input autoFocus required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className={cn(inputClass, 'p-2 mt-1')} />
+          </label>
+          <label className="text-sm text-mist">Nombre en el sitio <span className="text-mist/60">(vacío = nombre interno)</span>
+            <input value={form.display_name} onChange={e => setForm(f => ({ ...f, display_name: e.target.value }))} className={cn(inputClass, 'p-2 mt-1')} />
+          </label>
+        </div>
+        <label className="block text-sm text-mist">Descripción <span className="text-mist/60">(aparece al abrir la categoría en la tienda)</span>
+          <textarea rows={3} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} className={cn(inputClass, 'p-2 mt-1')} />
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={form.show_in_menu} onChange={e => setForm(f => ({ ...f, show_in_menu: e.target.checked }))} className="accent-[#D4AF37]" />
+          Mostrar en «El Umbral»
+          <span className="text-xs text-mist">(solo aparece si tiene productos a la venta)</span>
+        </label>
         <div className="flex flex-wrap gap-2">
           <button disabled={busy} className="px-3 py-1 rounded-full bg-gold text-ink text-sm font-semibold disabled:opacity-50">Guardar</button>
-          <button type="button" onClick={() => { setEditing(false); setName(category.name); setError(null); }}
+          <button type="button" onClick={() => { setEditing(false); setForm(blank()); setError(null); }}
             className="px-3 py-1 rounded-full border border-white/15 text-sm text-mist">Cancelar</button>
           <button type="button" disabled={busy || count > 0} onClick={remove}
             title={count > 0 ? 'Mueve sus productos a otra categoría para poder borrarla' : undefined}
@@ -336,18 +360,25 @@ const CategoryCard: React.FC<{
   return (
     <div className="glass rounded-2xl border border-transparent hover:border-gold/50 transition-colors flex items-start">
       <button onClick={onOpen} className="flex-1 min-w-0 p-4 text-left">
-        <p className="text-gold truncate">{category.name}</p>
+        <p className="text-gold truncate">{categoryLabel(category)}</p>
+        {category.display_name && category.display_name !== category.name && <p className="text-xs text-mist/70 truncate">{category.name}</p>}
         <p className="text-sm text-mist">{count} {count === 1 ? 'producto' : 'productos'}</p>
+        {category.show_in_menu && <p className="mt-1 text-[11px] uppercase tracking-widest text-gold/80">En El Umbral</p>}
       </button>
-      <button onClick={() => setEditing(true)} className="p-3 text-mist hover:text-gold" aria-label={`Editar categoría ${category.name}`}>
-        <Pencil size={14} />
-      </button>
+      <div className="flex flex-col items-center py-1">
+        <button onClick={() => setEditing(true)} className="p-2 text-mist hover:text-gold" aria-label={`Editar categoría ${category.name}`}>
+          <Pencil size={14} />
+        </button>
+        <button onClick={onMove?.up} disabled={!onMove?.up} className="p-1 text-mist hover:text-gold disabled:opacity-20" aria-label="Subir"><ArrowUp size={14} /></button>
+        <button onClick={onMove?.down} disabled={!onMove?.down} className="p-1 text-mist hover:text-gold disabled:opacity-20" aria-label="Bajar"><ArrowDown size={14} /></button>
+      </div>
     </div>
   );
 };
 
 const Products: React.FC = () => {
   const { token } = useAuth();
+  const catalog = useCatalog();
   const [products, setProducts] = useState<StoreProduct[] | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [editing, setEditing] = useState<StoreProduct | null | 'new'>(null);
@@ -371,11 +402,29 @@ const Products: React.FC = () => {
     setProducts(prev => (prev?.some(x => x.id === p.id) ? prev.map(x => (x.id === p.id ? p : x)) : [p, ...(prev ?? [])]));
     setEditing(null);
     setSelected(p.category);
+    catalog.reload();
   };
 
-  const renamed = (c: Category) => {
+  const categorySaved = (c: Category) => {
     setCategories(cs => cs.map(x => (x.id === c.id ? c : x)));
     setProducts(prev => prev?.map(p => (p.category === c.id ? { ...p, category_name: c.name } : p)) ?? null);
+    catalog.reload();
+  };
+
+  // Mueve una categoría y renumera `position` 0..n; solo se guardan las que cambian.
+  const move = async (from: number, to: number) => {
+    if (!token) return;
+    const next = [...categories];
+    next.splice(to, 0, next.splice(from, 1)[0]);
+    const changed = next.map((c, i) => ({ ...c, position: i })).filter((c, i) => c.position !== next[i].position);
+    setCategories(next.map((c, i) => ({ ...c, position: i })));
+    try {
+      await Promise.all(changed.map(c => updateCategory(token, c.id, { position: c.position })));
+      catalog.reload();
+    } catch (e: any) {
+      setError(e.message);
+      listCategories(token).then(setCategories).catch(() => undefined);
+    }
   };
 
   const newCategory = async () => {
@@ -384,6 +433,7 @@ const Products: React.FC = () => {
     try {
       const c = await createCategory(token, name);
       setCategories(cs => [...cs, c]);
+      catalog.reload();
     } catch (e: any) { setError(e.message); }
   };
 
@@ -410,9 +460,13 @@ const Products: React.FC = () => {
       )}
       {!category ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {categories.map(c => (
+          {categories.map((c, i) => (
             <CategoryCard key={c.id} category={c} count={counts.get(c.id) ?? 0} onOpen={() => setSelected(c.id)}
-              onRenamed={renamed} onDeleted={() => setCategories(cs => cs.filter(x => x.id !== c.id))} />
+              onSaved={categorySaved} onDeleted={() => { setCategories(cs => cs.filter(x => x.id !== c.id)); catalog.reload(); }}
+              onMove={{
+                up: i > 0 ? () => move(i, i - 1) : undefined,
+                down: i < categories.length - 1 ? () => move(i, i + 1) : undefined,
+              }} />
           ))}
           <button onClick={newCategory}
             className="rounded-2xl p-4 border border-dashed border-white/15 text-mist text-sm flex items-center justify-center gap-1 hover:border-gold/50 hover:text-gold">
@@ -421,7 +475,7 @@ const Products: React.FC = () => {
         </div>
       ) : (
         <div className="space-y-2">
-          <h3 className="text-lg text-gold">{category.name} <span className="text-sm text-mist">· {shown.length}</span></h3>
+          <h3 className="text-lg text-gold">{categoryLabel(category)} <span className="text-sm text-mist">· {shown.length}</span></h3>
           {shown.length === 0 && <p className="text-sm text-mist">Esta categoría no tiene productos.</p>}
           <ul className="glass rounded-2xl divide-y divide-white/10">
             {shown.map(p => (
@@ -449,7 +503,9 @@ const Products: React.FC = () => {
 
 export const StoreAdmin: React.FC = () => {
   const { token } = useAuth();
-  const [tab, setTab] = useState('payments');
+  // ?sub=products: el atajo «Elegir categorías» del menú abre directamente Productos.
+  const [params] = useSearchParams();
+  const [tab, setTab] = useState(params.get('sub') === 'products' ? 'products' : 'payments');
   const [pending, setPending] = useState(0);
   const refreshPending = () => { if (token) listManualPayments(token, 'pending').then(p => setPending(p.length)).catch(() => undefined); };
   useEffect(refreshPending, [token]);

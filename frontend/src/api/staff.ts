@@ -1,7 +1,9 @@
 // Panel de Adela (/cuenta → Tienda, Calendario). Todo exige staff; el
 // backend lo comprueba en cada llamada.
 import type { ManualMethod } from './payments';
-import type { Order, StoreProduct } from './store';
+import type { Category, Order, StoreProduct } from './store';
+
+export type { Category };
 
 /** Error de la API con el status y el cuerpo (p. ej. `can_force` en un 409 de la cita manual). */
 export class ApiError extends Error {
@@ -35,14 +37,12 @@ const json = (body: unknown) => JSON.stringify(body);
 
 // ── Tienda ──────────────────────────────────────────────────────────────────
 
-export interface Category { id: number; name: string }
-
 export const listProducts = (t: string) => call<StoreProduct[]>(t, '/api/store/products/');
 export const listCategories = (t: string) => call<Category[]>(t, '/api/store/categories/');
 export const createCategory = (t: string, name: string) =>
   call<Category>(t, '/api/store/categories/', { method: 'POST', body: json({ name }) });
-export const renameCategory = (t: string, id: number, name: string) =>
-  call<Category>(t, `/api/store/categories/${id}/`, { method: 'PATCH', body: json({ name }) });
+export const updateCategory = (t: string, id: number, data: Partial<Omit<Category, 'id'>>) =>
+  call<Category>(t, `/api/store/categories/${id}/`, { method: 'PATCH', body: json(data) });
 /** El backend responde 409 si la categoría aún tiene productos. */
 export const deleteCategory = (t: string, id: number) =>
   call<void>(t, `/api/store/categories/${id}/`, { method: 'DELETE' });

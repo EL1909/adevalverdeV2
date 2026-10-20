@@ -200,6 +200,20 @@ Pendiente:
 - [x] 56 tests (16 nuevos).
 - Pendiente: `manage.py link_appointment_clients` sobre la base real tras importar.
 
+### Fase 3.8 — Navegación por categorías ✅ (2026-10-20, local)
+
+- [x] **evz_backbone v1.6.0**: `Category.display_name`, `description`, `show_in_menu`, `position`.
+  El importador trae `display_name` y `description` del sitio anterior.
+- [x] Barra: logo → Sobre mí; **El Umbral ▾** (categorías que Adela marca y que tienen algo a
+  la venta, con su nombre visible); **Escuela de Silencio ▾** (Escuela, Herramientas, Sesiones
+  y mentorías); botón de inicio junto al carrito. Fuera: Inicio, Sobre mí, Tienda, Planes.
+- [x] Botones dorados como en el sitio anterior: **El Escáner** (`#` hasta la fase 4) y
+  **Mentoría VIP** (`/asesorias?sesion=mentoria`: preselecciona la sesión cuyo nombre contiene «mentoria»).
+- [x] `/tienda?categoria=<slug>`: título y descripción de la categoría; sin filtro, todo agrupado.
+- [x] Panel → Tienda → Productos: nombre visible, descripción, «Mostrar en El Umbral» y orden ↑↓.
+  En modo edición, El Umbral enlaza ahí («Elegir categorías»).
+- Pendiente: en la VM, Adela marca y nombra sus categorías (hoy ninguna está en el menú).
+
 ### Fase 3.5 — Asesorías y libros (siguiente)
 
 - Mentoría 1:1: 90 min, $222 (duración desde el panel → pasa a Asesorías).
@@ -248,8 +262,8 @@ base de producción es un `pg_dump` de la local (`adevalverde_v2_b`) más
      usuarios, pedidos y citas posteriores al 2026-10-13.
    - nginx: `server_name adelavalverde.info www…` a V2, el viejo a `old.adelavalverde.info`;
      quitar `X-Robots-Tag`; `.env` con hosts finales y PayPal live; webhook live.
-   - `./deploy.sh` (su sección de un solo uso crea como lead a las cuentas sin
-     ficha en Clientes, también las del delta); después, borrar esa sección.
+   - `./deploy.sh`. Su sección de un solo uso (leads para las cuentas importadas)
+     se quitó el 2026-10-20: las cuentas del delta se dan de alta en Clientes a mano.
    - `link_appointment_clients`; redirecciones de URLs antiguas (`/store/…`,
      `/test-coherencia/`, `/bio/`).
    - Tras unos días estable: `SECURE_HSTS_SECONDS`, apagar el sitio viejo
