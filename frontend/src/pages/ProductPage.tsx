@@ -6,21 +6,23 @@ import { useBusiness } from '../context/BusinessContext';
 import { useCart } from '../context/CartContext';
 import { useCatalog } from '../context/CatalogContext';
 import { useContent } from '../context/ContentContext';
-import { Editable } from '../components/Editable';
+import { ProductImage, ProductText } from '../components/ProductEditable';
+import { ProductSections } from '../components/ProductSections';
 import { Placeholder } from './Placeholder';
 import { formatMoney } from '../lib/money';
 import { cn, descriptionBox } from '../lib/utils';
 
 /**
  * /libro/<slug>: página propia de un producto (Adela la activa en el panel).
- * El texto largo es un bloque del CMS (libro.<slug>.cuerpo), editable en el sitio.
+ * Portada, nombre y descripción se editan en el producto (igual que en el panel);
+ * debajo, la página larga por secciones (bloques del CMS libro.<slug>.*).
  */
 export const ProductPage: React.FC = () => {
   const { slug = '' } = useParams();
   const { business } = useBusiness();
   const { items, add } = useCart();
   const { categories } = useCatalog();
-  const { blocks, editMode } = useContent();
+  const { editMode } = useContent();
   const [product, setProduct] = useState<StoreProduct | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,8 +36,6 @@ export const ProductPage: React.FC = () => {
   if (!product) return <Placeholder title="Página no encontrada" text="Este libro no existe o ya no está disponible." />;
 
   const category = categories.find(c => c.id === product.category);
-  const bodyKey = `libro.${product.slug.slice(0, 100)}.cuerpo`;
-  const hasBody = !!blocks[bodyKey]?.text;
   const inCart = items.some(i => i.product_id === product.id);
   const isSession = !!product.duration; // las asesorías se reservan, no van al carrito
 
@@ -47,18 +47,21 @@ export const ProductPage: React.FC = () => {
       </Link>
 
       <div className="grid md:grid-cols-2 gap-10 items-start">
-        {product.image
-          ? <img src={product.image} alt={product.name} className="w-full rounded-3xl object-cover" />
+        {product.image || editMode
+          ? <ProductImage product={product} onSaved={setProduct}
+              className={cn('w-full rounded-3xl object-cover', !product.image && 'aspect-[3/4]')} />
           : <div className="aspect-[3/4] rounded-3xl bg-white/5" />}
         <div className="space-y-5">
           <p className="text-xs uppercase tracking-widest text-mist">
             {category ? categoryLabel(category) : product.category_name}{product.is_digital && ' · PDF'}
           </p>
-          <h1 className="text-4xl text-gold">{product.name}</h1>
+          <ProductText product={product} field="name" as="h1" className="text-4xl text-gold" onSaved={setProduct} />
           <p className="text-2xl text-bone font-semibold">
             {Number(product.price) === 0 ? 'Gratis' : formatMoney(product.price, business.currency || 'USD')}
           </p>
-          {product.description && <p className={cn('text-mist', descriptionBox)}>{product.description}</p>}
+          {(product.description || editMode) && (
+            <ProductText product={product} field="description" className={cn('text-mist', descriptionBox)} onSaved={setProduct} />
+          )}
           {isSession ? (
             <Link to={`/asesorias?sesion=${encodeURIComponent(product.name)}`}
               className="flex items-center justify-center gap-2 bg-gold text-ink rounded-full py-3 font-semibold hover:bg-gold-light transition-colors">
@@ -77,14 +80,7 @@ export const ProductPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Texto largo: solo se muestra si Adela lo escribió (o mientras edita). */}
-      {(hasBody || editMode) && (
-        <div className="glass rounded-3xl p-8 md:p-10">
-          <Editable k={bodyKey} className="text-bone/90 leading-relaxed" placeholder="Escribe aquí el texto de la página de este libro.">
-            {''}
-          </Editable>
-        </div>
-      )}
+      <ProductSections product={product} prefix={`libro.${product.slug.slice(0, 100)}`} />
     </section>
   );
 };

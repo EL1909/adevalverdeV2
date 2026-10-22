@@ -1,12 +1,14 @@
 """Panel de Adela (/cuenta → Tienda, Calendario): permisos y acciones de staff."""
 
 import datetime
+import io
 import shutil
 import tempfile
 from decimal import Decimal
 from unittest import mock
 
 from django.core.files.uploadedfile import SimpleUploadedFile
+from PIL import Image as PILImage
 from django.test import TestCase, override_settings
 from evz_calendars.availability import business_tz
 from evz_calendars.models import Appointment, TimeBlock, WeeklySchedule
@@ -55,6 +57,36 @@ class StaffStoreTests(TestCase):
         # El público ve el producto, no la ruta del archivo.
         self.api.force_authenticate(None)
         self.assertNotIn('download_file', self.api.get(f'/api/store/products/{product.pk}/').data)
+
+    def test_staff_opens_the_product_file(self):
+        pdf = SimpleUploadedFile('vasija.pdf', b'%PDF-1.4 x', content_type='application/pdf')
+        product = Product.objects.create(name='Libro', description='', price=Decimal('5'), category=self.cat,
+                                         is_digital=True, download_file=pdf)
+        url = f'/api/store/products/{product.pk}/file/'
+        self.api.force_authenticate(self.client_user)
+        self.assertEqual(self.api.get(url).status_code, 403)
+        self.api.force_authenticate(self.staff)
+        res = self.api.get(url)
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(b''.join(res.streaming_content), b'%PDF-1.4 x')
+
+    def test_cover_framing_is_validated_and_resets_with_a_new_image(self):
+        self.api.force_authenticate(self.staff)
+        product = Product.objects.create(name='Libro', description='', price=Decimal('5'), category=self.cat)
+        url = f'/api/store/products/{product.pk}/'
+        res = self.api.patch(url, {'image_framing': '{"x": 30, "y": 70, "zoom": 1.5}'})
+        self.assertEqual(res.status_code, 200, res.data)
+        self.assertEqual(res.data['image_framing'], {'x': 30, 'y': 70, 'zoom': 1.5})
+        self.assertEqual(self.api.patch(url, {'image_framing': '{"x": 30, "y": 70, "zoom": 9}'}).status_code, 400)
+        # El público lo recibe para pintar la portada.
+        self.api.force_authenticate(None)
+        self.assertEqual(self.api.get(url).data['image_framing']['zoom'], 1.5)
+        self.api.force_authenticate(self.staff)
+        buf = io.BytesIO()
+        PILImage.new('RGB', (4, 3)).save(buf, 'PNG')
+        res = self.api.patch(url, {'image': SimpleUploadedFile('p.png', buf.getvalue(), content_type='image/png')})
+        self.assertEqual(res.status_code, 200, res.data)
+        self.assertEqual(res.data['image_framing'], {})
 
     def test_category_with_products_cannot_be_deleted(self):
         Product.objects.create(name='Libro', description='', price=Decimal('5'), category=self.cat)

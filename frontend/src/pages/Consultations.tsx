@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Clock, Loader2 } from 'lucide-react';
-import { createBooking, fetchDays, fetchServices, fetchSlots, type DaySlots, type Service, type Slot } from '../api/bookings';
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Clock, Loader2 } from 'lucide-react';
+import { createBooking, fetchDays, fetchFreeCheck, fetchServices, fetchSlots, type DaySlots, type FreeCheck, type Service, type Slot } from '../api/bookings';
 import { fetchPaymentsConfig, type PaymentsConfig } from '../api/payments';
 import { Editable } from '../components/Editable';
 import { PaymentOptions } from '../components/PaymentOptions';
@@ -62,6 +62,46 @@ const MonthCalendar: React.FC<{ days: string[]; selected: string | null; onSelec
   );
 };
 
+/**
+ * Sesión con precio que sale gratis (una vez) a quien compró un libro. Con
+ * sesión iniciada se comprueba sola y lista sus libros; sin sesión, con el
+ * email de la compra (solo dice sí o no). El servidor lo vuelve a comprobar al reservar.
+ */
+const BookCheck: React.FC<{
+  service: Service; check: FreeCheck | null; checking: boolean; loggedIn: boolean;
+  onCheck: (email: string) => void;
+}> = ({ service, check, checking, loggedIn, onCheck }) => {
+  const [email, setEmail] = useState('');
+  const price = formatMoney(service.price, service.currency);
+  return (
+    <div className="glass rounded-3xl p-6 space-y-3">
+      <p className="text-gold">Tus libros</p>
+      {checking ? <Loader2 className="animate-spin text-gold" /> : check?.free ? (
+        <>
+          <p className="flex items-center gap-2"><Check size={18} className="text-gold" /> Incluida con tu compra: <span className="line-through text-mist">{price}</span> <span className="text-gold">gratis</span></p>
+          {check.purchases && check.purchases.length > 0 && (
+            <ul className="text-sm text-mist list-disc pl-5">{check.purchases.map(b => <li key={b}>{b}</li>)}</ul>
+          )}
+        </>
+      ) : check?.used ? (
+        <p className="text-sm text-mist">Ya usaste tu sesión incluida. Esta se paga: {price}.</p>
+      ) : check ? (
+        <p className="text-sm text-mist">
+          No encontramos libros comprados {loggedIn ? 'con tu cuenta' : 'con ese email'}. La sesión cuesta {price}; con la compra de un libro viene incluida.
+        </p>
+      ) : (
+        <p className="text-sm text-mist">¿Compraste un libro? La sesión viene incluida. Escribe el email de tu compra.</p>
+      )}
+      {!loggedIn && !check?.free && (
+        <form className="flex gap-2" onSubmit={e => { e.preventDefault(); if (email.trim()) onCheck(email.trim()); }}>
+          <input className={inputClass} type="email" placeholder="Email de tu compra" value={email} onChange={e => setEmail(e.target.value)} />
+          <button type="submit" disabled={checking || !email.trim()} className="px-5 rounded-full border border-gold text-gold hover:bg-gold/10 disabled:opacity-40">Comprobar</button>
+        </form>
+      )}
+    </div>
+  );
+};
+
 const normalize = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
 export const Consultations: React.FC = () => {
@@ -78,6 +118,9 @@ export const Consultations: React.FC = () => {
   const [config, setConfig] = useState<PaymentsConfig | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false); // el calendario se abre a petición
+  const [freeCheck, setFreeCheck] = useState<{ email: string; result: FreeCheck } | null>(null);
+  const [checking, setChecking] = useState(false);
 
   useEffect(() => {
     fetchServices().then(list => {
@@ -97,6 +140,24 @@ export const Consultations: React.FC = () => {
     if (service) fetchDays(service.id).then(r => setDays(r.days)).catch(e => setError(e.message));
   }, [service]);
 
+  const checkBooks = (email: string) => {
+    if (!service) return;
+    setChecking(true);
+    fetchFreeCheck(service.id, email, token)
+      .then(result => {
+        setFreeCheck({ email, result });
+        if (!user && result.free) setForm(f => ({ ...f, email }));
+      })
+      .catch(e => setError(e.message))
+      .finally(() => setChecking(false));
+  };
+
+  // Con sesión iniciada, sus libros se comprueban solos.
+  useEffect(() => {
+    setFreeCheck(null);
+    if (service?.free_with_purchase && user) checkBooks(user.email);
+  }, [service, user]);
+
   const loadSlots = (d: string) => {
     if (!service) return;
     setDay(d); setSlot(null); setSlots(null); setError(null);
@@ -104,7 +165,9 @@ export const Consultations: React.FC = () => {
   };
 
   const showLocal = differsFromBusiness();
-  const free = service ? Number(service.price) === 0 : false;
+  // Incluida con un libro: vale para el email comprobado (o la cuenta).
+  const includedFree = !!freeCheck?.result.free && (!!user || normalize(form.email.trim()) === normalize(freeCheck.email));
+  const free = service ? Number(service.price) === 0 || includedFree : false;
   const contactReady = !!user || (form.name.trim() !== '' && /\S+@\S+\.\S+/.test(form.email));
   const ready = !!service && !!slot && contactReady;
 
@@ -149,18 +212,29 @@ export const Consultations: React.FC = () => {
         {!services ? <Loader2 className="animate-spin text-gold" /> : services.length === 0 ? (
           <p className="text-mist">No hay sesiones disponibles en este momento.</p>
         ) : (
-          <div className="grid sm:grid-cols-2 gap-4">
+          // Mismas tarjetas que Herramientas (AppCard): imagen arriba, nombre, texto y pie con duración y precio.
+          <div className="grid sm:grid-cols-2 gap-6">
             {services.map(s => (
               <button
                 key={s.id}
                 onClick={() => setService(s)}
-                className={cn('glass rounded-3xl p-6 text-left space-y-2 border transition-colors',
+                className={cn('group glass rounded-3xl overflow-hidden h-full flex flex-col text-left border transition-colors',
                   service?.id === s.id ? 'border-gold' : 'border-transparent hover:border-gold/40')}
               >
-                <p className="text-lg">{s.name}</p>
-                <p className="text-sm text-mist flex items-center gap-2"><Clock size={14} /> {s.minutes} min</p>
-                {s.description && <p className={cn('text-sm text-mist', descriptionBox)}>{s.description}</p>}
-                <p className="text-gold">{Number(s.price) === 0 ? 'Gratuita' : formatMoney(s.price, s.currency)}</p>
+                <div className="aspect-[4/3] overflow-hidden w-full">
+                  {s.image
+                    ? <img src={s.image} alt="" className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-500" />
+                    : <div className="w-full h-full bg-white/5" />}
+                </div>
+                <div className="p-6 flex-1 flex flex-col gap-3 w-full">
+                  <h3 className="text-xl text-gold">{s.name}</h3>
+                  {s.description && <p className={cn('text-sm text-mist flex-1', descriptionBox)}>{s.description}</p>}
+                  {s.free_with_purchase && <p className="text-xs text-mist">Incluida si compraste un libro</p>}
+                  <div className="mt-auto flex items-center justify-between text-xs text-mist">
+                    <span className="flex items-center gap-1"><Clock size={14} /> {s.minutes} min</span>
+                    <span className="text-gold text-sm">{Number(s.price) === 0 ? 'Gratuita' : formatMoney(s.price, s.currency)}</span>
+                  </div>
+                </div>
               </button>
             ))}
           </div>
@@ -170,7 +244,24 @@ export const Consultations: React.FC = () => {
       {/* 2 · Día y hora */}
       {service && (
         <div className="space-y-4">
-          <h2 className="text-xl text-gold">2 · Día y hora</h2>
+          <button onClick={() => setCalendarOpen(o => !o)} aria-expanded={calendarOpen}
+            className="flex items-center gap-2 text-xl text-gold hover:text-gold-light">
+            2 · Día y hora
+            <ChevronDown size={20} className={cn('transition-transform', calendarOpen && 'rotate-180')} />
+          </button>
+          {service.free_with_purchase && (
+            <BookCheck service={service} check={freeCheck?.result ?? null} checking={checking} loggedIn={!!user} onCheck={checkBooks} />
+          )}
+          {!calendarOpen ? (
+            <p className="text-sm text-mist">
+              {slot
+                ? <><span className="capitalize">{formatDate(slot.start)}</span>, {formatTime(slot.start, BUSINESS_TZ)} (hora de Madrid) · </>
+                : null}
+              <button onClick={() => setCalendarOpen(true)} className="text-gold hover:text-gold-light">
+                {slot ? 'Cambiar' : 'Ver calendario'}
+              </button>
+            </p>
+          ) : (
           <div className="grid md:grid-cols-2 gap-6">
             <div className="glass rounded-3xl p-6">
               {days ? <MonthCalendar days={days} selected={day} onSelect={loadSlots} /> : <Loader2 className="animate-spin text-gold" />}
@@ -202,6 +293,7 @@ export const Consultations: React.FC = () => {
               )}
             </div>
           </div>
+          )}
         </div>
       )}
 

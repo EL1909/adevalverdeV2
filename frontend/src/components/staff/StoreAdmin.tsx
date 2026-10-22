@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowDown, ArrowLeft, ArrowUp, Check, FileText, Loader2, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowUp, Check, ExternalLink, FileText, Loader2, Pencil, Plus, RotateCcw, Trash2, X, ZoomIn } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import {
   addOrderNote, cancelOrder, confirmManualPayment, createCategory, deleteCategory, listCategories, listManualPayments, listOrders,
-  listProducts, openProof, rejectManualPayment, saveProduct, updateCategory, type Category, type ManualPayment,
+  listProducts, openProductFile, openProof, rejectManualPayment, saveProduct, updateCategory, type Category, type ManualPayment,
 } from '../../api/staff';
+import type { Framing } from '../../api/content';
 import { categoryLabel, productPath, type Order, type StoreProduct } from '../../api/store';
+import { CENTER, frameStyle, framingOf, storedFraming, useFramingGestures } from '../Editable';
 import { useAuth } from '../../context/AuthContext';
 import { useCatalog } from '../../context/CatalogContext';
 import { formatMoney } from '../../lib/money';
@@ -186,6 +188,52 @@ const Orders: React.FC = () => {
 
 // ── Productos ───────────────────────────────────────────────────────────────
 
+/**
+ * Portada del producto con su encuadre, en la misma caja 4:3 que la tarjeta de
+ * la tienda: arrastrar mueve, rueda o deslizador hacen zoom.
+ */
+const CoverField: React.FC<{
+  src: string | null; framing: Framing; onFraming: (f: Framing) => void; onFile: (f: File | null) => void; isNew: boolean;
+}> = ({ src, framing, onFraming, onFile, isNew }) => {
+  // El hook trabaja con un estado que puede ser null; aquí siempre se está ajustando.
+  const setDraft: React.Dispatch<React.SetStateAction<Framing | null>> = v => {
+    const next = typeof v === 'function' ? v(framing) : v;
+    if (next) onFraming(next);
+  };
+  const { img, area, handlers } = useFramingGestures(src ? framing : null, setDraft);
+
+  return (
+    <div className="space-y-2">
+      <p className="text-sm text-mist">Portada{isNew && ' (nueva, se guarda al pulsar Guardar)'}</p>
+      {src ? (
+        <>
+          <div ref={area} {...handlers}
+            className="relative w-full max-w-[300px] h-[400px] overflow-hidden rounded-xl border border-white/15 cursor-grab active:cursor-grabbing touch-none select-none">
+            <img ref={img} src={src} alt="" draggable={false} className="w-full h-full object-cover" style={frameStyle(framing)} />
+          </div>
+          <div className="max-w-sm flex items-center gap-2 text-xs">
+            <span className="text-mist">Arrastra para encuadrar</span>
+            <label className="flex items-center gap-2 text-gold flex-1">
+              <ZoomIn size={14} />
+              <input type="range" min={1} max={4} step={0.01} value={framing.zoom}
+                onChange={e => onFraming({ ...framing, zoom: Number(e.target.value) })} className="flex-1 accent-[#D4AF37]" />
+            </label>
+            <button type="button" onClick={() => onFraming(CENTER)} className="p-1.5 rounded-full border border-white/15 text-mist" title="Centrada y sin zoom">
+              <RotateCcw size={14} />
+            </button>
+          </div>
+        </>
+      ) : <div className="w-full max-w-[300px] h-[400px] rounded-xl bg-white/5 flex items-center justify-center text-xs text-mist">Sin imagen</div>}
+      <label className="block text-sm text-mist">{src ? 'Cambiar imagen' : 'Subir imagen'}
+        <input type="file" accept="image/*" className="block mt-1" onChange={e => onFile(e.target.files?.[0] ?? null)} />
+      </label>
+    </div>
+  );
+};
+
+/** Nombre legible del archivo guardado (la ruta lleva un sufijo aleatorio). */
+const fileName = (url: string) => decodeURIComponent(url.split('/').pop() ?? '').replace(/-[A-Za-z0-9]{12}(\.\w+)$/, '$1');
+
 const ProductForm: React.FC<{
   product: StoreProduct | null;
   categories: Category[];
@@ -205,9 +253,14 @@ const ProductForm: React.FC<{
     is_digital: product?.is_digital ?? false,
     requires_shipping: product?.requires_shipping ?? false,
     has_page: product?.has_page ?? false,
+    free_with_purchase: product?.free_with_purchase ?? false,
   });
   const [image, setImage] = useState<File | null>(null);
+  const [framing, setFraming] = useState<Framing>(framingOf(product?.image_framing));
   const [file, setFile] = useState<File | null>(null);
+  // Vista previa de la imagen recién elegida; si no, la que ya tiene.
+  const preview = useMemo(() => (image ? URL.createObjectURL(image) : null), [image]);
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const set = (k: keyof typeof form, v: string | boolean) => setForm(f => ({ ...f, [k]: v }));
@@ -228,6 +281,7 @@ const ProductForm: React.FC<{
     const data = new FormData();
     Object.entries(form).forEach(([k, v]) => data.append(k, String(v)));
     if (image) data.append('image', image);
+    data.append('image_framing', JSON.stringify(storedFraming(framing)));
     if (file) data.append('download_file', file);
     setBusy(true); setError(null);
     try {
@@ -264,14 +318,16 @@ const ProductForm: React.FC<{
         </label>
       </div>
       <p className="text-xs text-mist">Con duración, el producto es una asesoría: se reserva en Asesorías, no se vende en la tienda.</p>
-      <label className="block text-sm text-mist">Imagen {product?.image && '(deja vacío para conservar la actual)'}
-        <input type="file" accept="image/*" className="block mt-1" onChange={e => setImage(e.target.files?.[0] ?? null)} />
-      </label>
+      <CoverField src={preview ?? product?.image ?? null} framing={framing} onFraming={setFraming} isNew={!!image}
+        onFile={f => { setImage(f); setFraming(CENTER); }} />
       <div className="flex flex-wrap gap-4 text-sm">
         <label className="flex items-center gap-2"><input type="checkbox" checked={form.is_active} onChange={e => set('is_active', e.target.checked)} /> Publicado</label>
         <label className="flex items-center gap-2"><input type="checkbox" checked={form.is_digital} onChange={e => set('is_digital', e.target.checked)} /> Digital (se descarga)</label>
         <label className="flex items-center gap-2"><input type="checkbox" checked={form.requires_shipping} onChange={e => set('requires_shipping', e.target.checked)} /> Requiere envío</label>
         <label className="flex items-center gap-2"><input type="checkbox" checked={form.has_page} onChange={e => set('has_page', e.target.checked)} /> Tiene página propia</label>
+        {form.duration && (
+          <label className="flex items-center gap-2"><input type="checkbox" checked={form.free_with_purchase} onChange={e => set('free_with_purchase', e.target.checked)} /> Gratis para quien compró un libro (una vez)</label>
+        )}
       </div>
       {form.has_page && (
         <p className="text-xs text-mist">
@@ -281,9 +337,23 @@ const ProductForm: React.FC<{
         </p>
       )}
       {form.is_digital && (
-        <label className="block text-sm text-mist">Archivo que recibe el cliente (PDF){product?.has_download && ' — ya tiene uno; sube otro para reemplazarlo'}
-          <input type="file" accept="application/pdf" className="block mt-1" onChange={e => setFile(e.target.files?.[0] ?? null)} />
-        </label>
+        <div className="space-y-2">
+          <p className="text-sm text-mist">Archivo que recibe el cliente (PDF)</p>
+          {product?.download_file && (
+            <div className="flex flex-wrap items-center gap-3 rounded-xl bg-white/5 px-3 py-2 text-sm">
+              <FileText size={16} className="text-gold shrink-0" />
+              <span className={cn('truncate', file && 'line-through text-mist')}>{fileName(product.download_file)}</span>
+              <button type="button" onClick={() => token && openProductFile(token, product.id).catch(e => setError(e.message))}
+                className="flex items-center gap-1 text-gold hover:underline text-xs">
+                <ExternalLink size={12} /> Abrir
+              </button>
+            </div>
+          )}
+          {file && <p className="text-xs text-gold">Se reemplazará por «{file.name}» al guardar.</p>}
+          <label className="block text-sm text-mist">{product?.download_file ? 'Reemplazar archivo' : 'Subir archivo'}
+            <input type="file" accept="application/pdf" className="block mt-1" onChange={e => setFile(e.target.files?.[0] ?? null)} />
+          </label>
+        </div>
       )}
       <ErrorBox error={error} />
       <button disabled={busy} className="w-full bg-gold text-ink py-3 rounded-full font-semibold disabled:opacity-50 flex items-center justify-center gap-2">

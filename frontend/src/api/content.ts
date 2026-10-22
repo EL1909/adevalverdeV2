@@ -11,7 +11,8 @@ export interface ContentBlock {
   updated_at: string;
 }
 
-export type ContentUpdate = { text: string } | { image: File } | { framing: Framing | Record<string, never> };
+/** `{ image: null }` quita la imagen del bloque. */
+export type ContentUpdate = { text: string } | { image: File | null } | { framing: Framing | Record<string, never> };
 
 export type ContentMap = Record<string, ContentBlock>;
 
@@ -26,11 +27,11 @@ export const saveContent = async (
   key: string,
   data: ContentUpdate,
 ): Promise<ContentBlock> => {
-  const isImage = 'image' in data;
+  const isImage = 'image' in data && data.image instanceof File;
   let body: FormData | string;
   if (isImage) {
     body = new FormData();
-    body.append('image', data.image);
+    body.append('image', (data as { image: File }).image);
   } else {
     body = JSON.stringify(data);
   }

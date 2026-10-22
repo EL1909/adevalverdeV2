@@ -144,6 +144,48 @@ class BookingTests(TestCase):
         self.api.force_authenticate(other)
         self.assertEqual(self.book(self.free).status_code, 201)
 
+    def courtesy(self):
+        return Product.objects.create(name='Sesión de cortesía', description='', price=Decimal('30.00'),
+                                      duration='15 min', category=self.session.category, free_with_purchase=True)
+
+    @mock.patch.object(paypal, 'create_order', return_value={'id': 'PAYPAL-1'})
+    def test_courtesy_is_free_once_for_book_buyers(self, *_):
+        courtesy = self.courtesy()
+        res = self.book(courtesy)
+        self.assertEqual(res.data['status'], 'completed')
+        appt = Appointment.objects.get()
+        self.assertEqual((appt.status, appt.order.total_amount), ('confirmed', 0))
+        # La segunda vez, con el mismo email, se paga.
+        res = self.book(courtesy, start=at(self.day, 12), customer_email='INVITADA@example.org')
+        self.assertEqual(res.data['paypal_order_id'], 'PAYPAL-1')
+        self.assertEqual(Appointment.objects.latest('pk').order.total_amount, Decimal('30.00'))
+
+    @mock.patch.object(paypal, 'create_order', return_value={'id': 'PAYPAL-1'})
+    def test_courtesy_is_paid_without_a_book(self, *_):
+        courtesy = self.courtesy()
+        self.bought_book('nueva@example.org', product=self.session)  # no es un libro
+        res = self.book(courtesy, customer_email='nueva@example.org')
+        self.assertEqual(res.data['paypal_order_id'], 'PAYPAL-1')
+        self.assertEqual(Appointment.objects.get().order.total_amount, Decimal('30.00'))
+
+    def test_free_check(self, *_):
+        courtesy = self.courtesy()
+        url = '/api/bookings/free-check/'
+        # Sin sesión: solo sí o no, sin decir qué compró.
+        res = self.api.get(url, {'service': courtesy.pk, 'email': 'invitada@example.org'})
+        self.assertEqual((res.data['free'], res.data['has_purchase']), (True, True))
+        self.assertNotIn('purchases', res.data)
+        res = self.api.get(url, {'service': courtesy.pk, 'email': 'nueva@example.org'})
+        self.assertEqual((res.data['free'], res.data['has_purchase']), (False, False))
+        self.assertEqual(self.api.get(url, {'service': courtesy.pk}).status_code, 400)
+        # Con sesión: su cuenta, y lista los libros.
+        self.api.force_authenticate(self.user)
+        res = self.api.get(url, {'service': courtesy.pk, 'email': 'otra@example.org'})
+        self.assertEqual((res.data['free'], res.data['purchases']), (True, ['El Misterio de la Sal']))
+        self.book(courtesy)
+        res = self.api.get(url, {'service': courtesy.pk})
+        self.assertEqual((res.data['free'], res.data['used']), (False, True))
+
     def test_rejects_unoffered_times(self, *_):
         self.assertEqual(self.book(start=at(self.day, 10) + datetime.timedelta(minutes=15)).status_code, 409)
         self.assertEqual(self.book(start=at(self.day, 20)).status_code, 409)

@@ -9,6 +9,31 @@ que funcione como hub de herramientas (ver `AppsProposal.rtfd`) y dirija a cada
 cliente al libro, programa o asesoría indicado. Las herramientas se incorporan
 una a una.
 
+## Estado y siguiente sesión (2026-10-20)
+
+**Hecho:** fases 0–3.8 y la herramienta 0 de la fase 4 (Test de la Coherencia), en
+`main` de los dos repos. V2 fija **evz_backbone v1.7.0** (tag `69c9faf`, publicado; incluye
+evz_clerk beta, que V2 no instala). Staging en la VM desde el 2026-10-19 (ver fase 5).
+
+**Siguiente:**
+1. Desplegar en la VM (`./deploy.sh`: instala v1.7.0, migra `evz_store.0011–0012` y
+   `content.0002`) y probar en staging: navegación (El Umbral), páginas `/libro/…`,
+   sesión de cortesía, test y «Ajustar encuadre».
+2. Fase 4, herramienta 1: **El Escáner de la Coherencia** (modelo `Situation`, límite
+   gratis/Premium). Antes conviene probar suscripciones en sandbox de PayPal (fase 2).
+3. Al terminar la fase 4: asignar el destino del botón **El Escáner** de la barra (hoy `#`).
+
+**Adela, en la VM (datos, no código):**
+- Categorías: nombre visible, descripción y «Mostrar en El Umbral» (hoy ninguna en el menú).
+- Mentoría 1:1 con duración «90 min»; sesión de cortesía a $0 con «15 min».
+- Marcar «Tiene página propia» en los libros y escribir su texto largo.
+- Test: elegir el destino de los 5 resultados y de la mentoría (modo edición, selector bajo cada botón).
+- «LA ANATOMÍA DEL MURO» está en Sesiones sin duración: se vende como producto; si es con cita, ponerle duración.
+
+**Pendientes sueltos:** encuadre de portadas de productos (`Product.image_framing`, backbone);
+el proxy de desarrollo usa el **8003** (`vite.config.ts` y `frontend/.env`, que lo pisa: mantenerlos iguales);
+[PENDIENTES.md](PENDIENTES.md) está desactualizado en Git (push de v1.4.0 y primer commit ya hechos).
+
 ## Decisiones tomadas
 
 | Tema | Decisión |
@@ -22,7 +47,7 @@ una a una.
 | Keymoments | Se descarta |
 | Agenda | **Sí aplica**: Adela da asesorías con cita (6 citas reales, Google Calendar). Se instalan `evz_calendars` + `evz_crm` (dependencia de `Appointment.client`) |
 | Usuario | `accounts.User` por email (UUID), con email obligatorio al registrarse |
-| Backbone | `evz-backbone` v1.4.0 (`[google-calendar,digital,paypal]`) |
+| Backbone | `evz-backbone` v1.7.0 (`[google-calendar,digital,paypal]`) |
 | Correo | Relay de EsfuerzoVZ (`evz_core.mail_relay`): sin SMTP propio, "Adela Valverde" en la cabecera |
 | Textos del sitio | CMS propio (app `content`): Adela edita textos e imágenes desde el propio sitio con su usuario staff; cada cambio guarda una revisión |
 
@@ -200,7 +225,7 @@ Pendiente:
 - [x] 56 tests (16 nuevos).
 - Pendiente: `manage.py link_appointment_clients` sobre la base real tras importar.
 
-### Fase 3.8 — Navegación por categorías ✅ (2026-10-20, local)
+### Fase 3.8 — Navegación por categorías ✅ (2026-10-20, en `main`)
 
 - [x] **evz_backbone v1.6.0**: `Category.display_name`, `description`, `show_in_menu`, `position`.
   El importador trae `display_name` y `description` del sitio anterior.
@@ -217,7 +242,7 @@ Pendiente:
   para el zoom). Se guarda `ContentBlock.framing` (punto a la vista y zoom), no un recorte; queda en
   las revisiones y una imagen nueva vuelve a centrarse. Portadas de productos: más adelante (backbone).
 
-### Fase 3.5 — Asesorías y libros ✅ (2026-10-20, local)
+### Fase 3.5 — Asesorías y libros ✅ (2026-10-20, en `main`)
 
 - [x] Mentoría 1:1: 90 min, $222 (duración desde el panel → pasa a Asesorías).
 - [x] Sesión de cortesía, gratis, solo para quien compró un libro (una vez por email):
@@ -235,8 +260,8 @@ Pendiente:
 
 | # | App | Nota |
 |---|---|---|
-| 0 | Test de la Coherencia | ✅ 2026-10-20 (local): `/apps/test-coherencia` (y `/test-coherencia` del sitio anterior). Sin IA; textos e imágenes editables (`test.*`); el destino de cada resultado y de la mentoría lo elige Adela en modo edición (`ProductCta`: página del libro o asesoría). Los IDs fijos del prototipo (19, 15, 6, 8, 5) no se usan: ya no correspondían (el CTA de La Sal apuntaba a Una Vasija Nueva) |
-| 1 | Escáner de la Coherencia | Modelo `Situation` (hechos, interpretaciones, emociones, suposiciones, faltantes, contradicciones, decisión, resultado), historial privado, límite gratis/Premium |
+| 0 | Test de la Coherencia | ✅ 2026-10-20: `/apps/test-coherencia` (y `/test-coherencia` del sitio anterior). Sin IA; textos e imágenes editables (`test.*`); el destino de cada resultado y de la mentoría lo elige Adela en modo edición (`ProductCta`: página del libro o asesoría). Los IDs fijos del prototipo (19, 15, 6, 8, 5) no se usan: ya no correspondían (el CTA de La Sal apuntaba a Una Vasija Nueva) |
+| 1 | Escáner de la Coherencia | **Siguiente.** Modelo `Situation` (hechos, interpretaciones, emociones, suposiciones, faltantes, contradicciones, decisión, resultado), historial privado, límite gratis/Premium |
 | 2 | La Llave del Día | Contenido + registro de aplicación |
 | 3 | Centro Soberano | Registro de límites y compromisos, revisión semanal |
 | 4 | Jericó | Ciclos de 7 días, pago único por ciclo |
@@ -257,7 +282,10 @@ base de producción es un `pg_dump` de la local (`adevalverde_v2_b`) más
 `backend/media`; lo que entre en el sitio viejo después del snapshot
 (2026-10-13) se pasa a mano en el corte.
 
-1. Staging en `v2.adelavalverde.info` (registro DNS A → VM), con el sitio viejo intacto:
+1. ✅ (2026-10-19) Staging en `v2.adelavalverde.info`, con el sitio viejo intacto. VM compartida
+   (`esfuerzo1909-nginx-host-server`): gunicorn `gunicorn-adevalverdeV2.service` en el **8010**,
+   Postgres 15 compartido con usuario `adevalverde_admin` y base `adevalverde`. **La base de la VM
+   es ahora la buena** (no la local). Pasos que se siguieron:
    - `sudo apt install postgresql`; crear usuario y base `adevalverde`.
    - Clonar en `~/projects/adevalverdeV2/adevalverdeV2`, venv en `../venv`
      (la VM necesita deploy key para `EL1909/evz_backbone`).
@@ -275,8 +303,8 @@ base de producción es un `pg_dump` de la local (`adevalverde_v2_b`) más
      quitar `X-Robots-Tag`; `.env` con hosts finales y PayPal live; webhook live.
    - `./deploy.sh`. Su sección de un solo uso (leads para las cuentas importadas)
      se quitó el 2026-10-20: las cuentas del delta se dan de alta en Clientes a mano.
-   - `link_appointment_clients`; redirecciones de URLs antiguas (`/store/…`,
-     `/test-coherencia/`, `/bio/`).
+   - `link_appointment_clients`; redirecciones de URLs antiguas (`/store/…`, `/bio/`).
+     `/test-coherencia` ya redirige desde el frontend a `/apps/test-coherencia`.
    - Tras unos días estable: `SECURE_HSTS_SECONDS`, apagar el sitio viejo
      (guardar su `db.sqlite3` y `media`).
 3. `evz_sync` hacia EsfuerzoVZ.

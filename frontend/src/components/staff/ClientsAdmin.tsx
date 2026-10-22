@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Loader2, Plus, Search, UserCheck, Users, X } from 'lucide-react';
+import { Loader2, MailCheck, Plus, Search, Trash2, UserCheck, Users, X } from 'lucide-react';
 import {
-  CLIENT_TAG, LEAD_TAG, addClientNote, clientHistory, createClient, getClient, listClients, promoteClient, updateClient,
+  CLIENT_TAG, CONTACT_TAG, LEAD_TAG, addClientNote, clientHistory, createClient, deleteClient, deleteUser, getClient, listClients, promoteClient, updateClient,
   type ClientHistory, type CrmClient, type Note,
 } from '../../api/staff';
 import { useAuth } from '../../context/AuthContext';
@@ -70,7 +70,7 @@ export const NotesThread: React.FC<{ notes: Note[]; onAdd: (text: string) => Pro
 
 // ── Ficha ───────────────────────────────────────────────────────────────────
 
-const ClientDetail: React.FC<{ id: number; onChanged: (c: CrmClient) => void }> = ({ id, onChanged }) => {
+const ClientDetail: React.FC<{ id: number; onChanged: (c: CrmClient) => void; onDeleted: (id: number) => void }> = ({ id, onChanged, onDeleted }) => {
   const { token } = useAuth();
   const [client, setClient] = useState<CrmClient | null>(null);
   const [history, setHistory] = useState<ClientHistory | null>(null);
@@ -114,6 +114,19 @@ const ClientDetail: React.FC<{ id: number; onChanged: (c: CrmClient) => void }> 
     try { apply(await promoteClient(token, id)); } catch (err: any) { setError(err.message); }
   };
 
+  /** Borra la ficha y, si tiene, su cuenta del sitio (primero la cuenta: si se niega, la ficha queda). */
+  const remove = async () => {
+    if (!token || !client) return;
+    const what = client.has_account ? `la ficha de ${client.name} y su cuenta del sitio` : `la ficha de ${client.name}`;
+    if (!confirm(`¿Borrar ${what}? No se puede deshacer. Sus citas y pedidos se conservan.`)) return;
+    setError(null);
+    try {
+      if (client.user) await deleteUser(token, client.user);
+      await deleteClient(token, id);
+      onDeleted(id);
+    } catch (err: any) { setError(err.message); }
+  };
+
   if (!client) return error ? <ErrorBox error={error} /> : <Loader2 className="animate-spin text-gold" />;
   const isLead = !client.tags.includes(CLIENT_TAG);
 
@@ -124,11 +137,22 @@ const ClientDetail: React.FC<{ id: number; onChanged: (c: CrmClient) => void }> 
           <h3 className="text-2xl text-bone flex items-center gap-2">{client.name} <ClientTag tags={client.tags} /></h3>
           <p className="text-xs text-mist">Desde {when(client.created_at)}{client.has_account && ' · tiene cuenta en el sitio'}</p>
         </div>
-        {isLead && (
-          <button onClick={promote} className="flex items-center gap-2 px-4 py-2 rounded-full bg-gold text-ink text-sm font-semibold">
-            <UserCheck size={16} /> Marcar como cliente
+        <div className="flex items-center gap-2">
+          {client.tags.includes(CONTACT_TAG) && (
+            <button onClick={() => setTags(client.tags.filter(t => t !== CONTACT_TAG))}
+              className="flex items-center gap-2 px-4 py-2 rounded-full border border-gold/60 text-gold text-sm hover:bg-gold/10">
+              <MailCheck size={16} /> Consulta respondida
+            </button>
+          )}
+          {isLead && (
+            <button onClick={promote} className="flex items-center gap-2 px-4 py-2 rounded-full bg-gold text-ink text-sm font-semibold">
+              <UserCheck size={16} /> Marcar como cliente
+            </button>
+          )}
+          <button onClick={remove} className="p-2 text-mist hover:text-red-300" aria-label="Borrar ficha" title="Borrar ficha">
+            <Trash2 size={16} />
           </button>
-        )}
+        </div>
       </div>
       <ErrorBox error={error} />
 
@@ -276,7 +300,7 @@ const NewClient: React.FC<{ onCreated: (c: CrmClient) => void; onOpen: (id: numb
 
 // ── Directorio ──────────────────────────────────────────────────────────────
 
-const FILTERS: Record<string, string | undefined> = { all: undefined, leads: LEAD_TAG, clients: CLIENT_TAG };
+const FILTERS: Record<string, string | undefined> = { all: undefined, contacts: CONTACT_TAG, leads: LEAD_TAG, clients: CLIENT_TAG };
 
 export const ClientsAdmin: React.FC = () => {
   const { token } = useAuth();
@@ -311,11 +335,11 @@ export const ClientsAdmin: React.FC = () => {
             value={search} onChange={e => setSearch(e.target.value)} />
         </div>
         <SubTabs value={filter} onChange={setFilter} tabs={[
-          { id: 'all', label: 'Todos' }, { id: 'leads', label: 'Leads' }, { id: 'clients', label: 'Clientes' },
+          { id: 'all', label: 'Todos' }, { id: 'contacts', label: 'Consultas' }, { id: 'leads', label: 'Leads' }, { id: 'clients', label: 'Clientes' },
         ]} />
         <ErrorBox error={error} />
         {!clients ? <Loader2 className="animate-spin text-gold" /> : clients.length === 0 ? (
-          <p className="text-sm text-mist">No hay {filter === 'leads' ? 'leads' : filter === 'clients' ? 'clientes' : 'nadie'} que coincida.</p>
+          <p className="text-sm text-mist">{filter === 'contacts' ? 'No hay consultas pendientes.' : `No hay ${filter === 'leads' ? 'leads' : filter === 'clients' ? 'clientes' : 'nadie'} que coincida.`}</p>
         ) : (
           <ul className="divide-y divide-white/10">
             {clients.map(c => (
@@ -323,7 +347,10 @@ export const ClientsAdmin: React.FC = () => {
                 <button onClick={() => select(c.id)}
                   className={cn('w-full text-left py-3 px-2 rounded-xl transition-colors', selected === c.id ? 'bg-gold/10' : 'hover:bg-white/5')}>
                   <span className="flex items-center justify-between gap-2">
-                    <span className={cn('truncate', selected === c.id && 'text-gold')}>{c.name}</span>
+                    <span className={cn('truncate', selected === c.id && 'text-gold')}>
+                      {c.tags.includes(CONTACT_TAG) && <span className="inline-block w-2 h-2 mr-2 rounded-full bg-gold align-middle" title="Consulta pendiente" />}
+                      {c.name}
+                    </span>
                     <ClientTag tags={c.tags} />
                   </span>
                   <span className="block text-xs text-mist truncate">{[c.email, c.phone].filter(Boolean).join(' · ') || '—'}</span>
@@ -343,7 +370,8 @@ export const ClientsAdmin: React.FC = () => {
           }} />
         ) : selected ? (
           <ClientDetail key={selected} id={selected}
-            onChanged={c => setClients(prev => prev?.map(x => (x.id === c.id ? c : x)) ?? null)} />
+            onChanged={c => setClients(prev => prev?.map(x => (x.id === c.id ? c : x)) ?? null)}
+            onDeleted={id => { setClients(prev => prev?.filter(x => x.id !== id) ?? null); setParams({ tab: 'clientes' }); }} />
         ) : (
           <div className="flex flex-col items-center justify-center h-64 text-center">
             <Users size={32} className="text-mist/40 mb-4" />

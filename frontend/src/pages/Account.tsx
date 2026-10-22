@@ -1,6 +1,6 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
-import { Loader2, LogOut } from 'lucide-react';
+import { ChevronDown, Loader2, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { OrderHistory } from '../components/OrderHistory';
 import { MyBookings, MyDownloads, MySubscriptions } from '../components/AccountSections';
@@ -19,6 +19,21 @@ const TABS = [
   { id: 'clientes', label: 'Clientes' },
 ];
 
+/** Sección del perfil, cerrada al entrar: el título la abre y cierra; el contenido, unas 6 filas con scroll. */
+const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="glass rounded-3xl p-6">
+      <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open}
+        className="w-full flex items-center justify-between gap-2 text-xl text-gold hover:text-gold-light">
+        {title}
+        <ChevronDown size={20} className={cn('transition-transform', open && 'rotate-180')} />
+      </button>
+      {open && <div className="mt-2 max-h-[27rem] overflow-y-auto pr-1">{children}</div>}
+    </div>
+  );
+};
+
 const Profile: React.FC = () => {
   const { user } = useAuth();
   return (
@@ -29,25 +44,13 @@ const Profile: React.FC = () => {
         {user?.is_superuser && <div className="pt-4"><PushToggle /></div>}
       </div>
 
-      <div className="glass rounded-3xl p-6">
-        <h2 className="text-xl text-gold mb-2">Asesorías</h2>
-        <MyBookings />
-      </div>
+      <Section title="Asesorías"><MyBookings /></Section>
 
-      <div className="glass rounded-3xl p-6">
-        <h2 className="text-xl text-gold mb-2">Historial de pedidos</h2>
-        <OrderHistory />
-      </div>
+      <Section title="Historial de pedidos"><OrderHistory /></Section>
 
-      <div className="glass rounded-3xl p-6">
-        <h2 className="text-xl text-gold mb-2">Suscripciones</h2>
-        <MySubscriptions />
-      </div>
+      <Section title="Suscripciones"><MySubscriptions /></Section>
 
-      <div className="glass rounded-3xl p-6">
-        <h2 className="text-xl text-gold mb-2">Descargas</h2>
-        <MyDownloads />
-      </div>
+      <Section title="Descargas"><MyDownloads /></Section>
     </div>
   );
 };

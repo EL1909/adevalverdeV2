@@ -5,6 +5,7 @@ from decimal import Decimal
 from io import StringIO
 from unittest import mock
 
+from django.core.cache import cache
 from django.core.management import call_command
 from django.test import TestCase, override_settings
 from django.utils import timezone
@@ -13,7 +14,7 @@ from evz_calendars.availability import business_tz
 from evz_calendars.booking import services as booking
 from evz_calendars.models import Appointment, TimeBlock
 from evz_crm.models import Client
-from evz_crm.services import CLIENT_TAG, LEAD_TAG, promote_to_client, resolve_or_create_client
+from evz_crm.services import CLIENT_TAG, CONTACT_TAG, LEAD_TAG, promote_to_client, resolve_or_create_client
 from evz_payments.models import PaymentMethod
 from evz_store.models import Category, Order, Product
 from evz_store.services import mark_paid
@@ -212,6 +213,26 @@ class BookingLeadTests(TestCase):
         self.api.force_authenticate(User.objects.create_user(email='otra@example.org', password='x'))
         self.assertEqual(self.api.post('/api/crm/clients/', {'name': 'X'}, format='json').status_code, 403)
 
+    def test_staff_deletes_lead_and_account(self, *_):
+        appt = self.web_booking(self.session, 9, email='dora@example.org')
+        user = User.objects.create_user(email='dora@example.org', password='x')
+        client = Client.objects.get(pk=appt.client_id)
+        client.user = user
+        client.save()
+        self.api.force_authenticate(user)
+        self.assertEqual(self.api.delete(f'/api/crm/clients/{client.pk}/').status_code, 403)
+        self.assertEqual(self.api.delete(f'/api/accounts/users/{user.pk}/').status_code, 403)
+        self.api.force_authenticate(self.staff)
+        self.assertEqual(self.api.delete(f'/api/accounts/users/{self.staff.pk}/').status_code, 400)
+        self.assertEqual(self.api.delete(f'/api/accounts/users/{user.pk}/').status_code, 204)
+        client.refresh_from_db()
+        self.assertIsNone(client.user_id)
+        self.assertEqual(self.api.delete(f'/api/crm/clients/{client.pk}/').status_code, 204)
+        # La cita y el pedido quedan, sin ficha.
+        appt.refresh_from_db()
+        self.assertIsNone(appt.client_id)
+        self.assertTrue(Order.objects.filter(pk=appt.order_id).exists())
+
     def test_link_command_for_old_appointments(self, *_):
         start = at(self.day, 10)
         order = Order.objects.create(customer_name='Ana', customer_email='ana@example.org', status='completed')
@@ -229,3 +250,52 @@ class BookingLeadTests(TestCase):
 
     def test_appointment_hours_are_business_time(self, *_):
         self.assertEqual(at(self.day, 10).tzinfo, business_tz())
+
+
+class ContactFormTests(TestCase):
+    url = '/api/crm/contact/'
+
+    def setUp(self):
+        cache.clear()  # el límite por IP vive en la caché
+        self.api = APIClient()
+        self.adela = User.objects.create_superuser(email='adela@example.org', password='x')
+
+    def send(self, **extra):
+        data = {'name': 'María', 'email': 'maria@example.org', 'message': 'Quiero la próxima fecha',
+                'topic': 'Escuela del Silencio', **extra}
+        return self.api.post(self.url, data, format='json')
+
+    def test_creates_lead_with_note_and_notifies(self):
+        with self.captureOnCommitCallbacks(execute=False):
+            self.assertEqual(self.send().status_code, 201)
+        client = Client.objects.get()
+        self.assertEqual(client.tags, [LEAD_TAG, CONTACT_TAG])
+        self.assertIn('Escuela del Silencio', client.notes[-1]['text'])
+        self.assertIn('Quiero la próxima fecha', client.notes[-1]['text'])
+        notif = self.adela.notifications.get()
+        self.assertEqual(notif.notif_type, 'NEW_CONTACT')
+        self.assertEqual(notif.link, f'/cuenta?tab=clientes&client={client.pk}')
+
+    def test_existing_client_is_not_made_lead_again(self):
+        ana = Client.objects.create(name='Ana', email='ana@example.org', tags=[CLIENT_TAG])
+        self.send(name='Ana R.', email='ANA@example.org')
+        ana.refresh_from_db()
+        self.assertEqual((ana.name, ana.tags), ('Ana', [CLIENT_TAG, CONTACT_TAG]))
+        self.assertEqual(Client.objects.count(), 1)
+
+    def test_validation_and_honeypot(self):
+        self.assertEqual(self.send(message='').status_code, 400)
+        self.assertEqual(self.send(email='', phone='').status_code, 400)
+        self.assertEqual(self.send(email='no-es-email').status_code, 400)
+        self.assertEqual(self.send(email='', phone='600111222').status_code, 201)
+        self.assertEqual(self.send(email='bot@example.org', website='http://spam').status_code, 201)
+        self.assertFalse(Client.objects.filter(email='bot@example.org').exists())
+
+    @override_settings(EVZ_CRM_CONTACT_RATE='2/hour')
+    def test_rate_limited_per_ip(self):
+        self.assertEqual(self.send().status_code, 201)
+        self.assertEqual(self.send().status_code, 201)
+        self.assertEqual(self.send().status_code, 429)
+
+    def test_directory_stays_staff_only(self):
+        self.assertIn(self.api.get('/api/crm/clients/').status_code, (401, 403))

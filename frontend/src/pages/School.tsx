@@ -1,7 +1,7 @@
 import React from 'react';
 import { Editable, EditableImage } from '../components/Editable';
+import { ContactCta } from '../components/ContactCta';
 import { Cta, Quote, SectionTitle } from '../components/PageBlocks';
-import { useBusiness } from '../context/BusinessContext';
 
 // Contenido inicial tomado de la página de Gamma que este sitio reemplaza
 // (elsilencioestuguru.gamma.site). Adela lo edita desde el modo edición.
@@ -27,11 +27,8 @@ const TESTIMONIALS = [
 ];
 
 export const School: React.FC = () => {
-  const { business } = useBusiness();
-  // Sin sistema de lista de espera: la consulta llega por correo a Adela.
-  const waitlist = business.email
-    ? `mailto:${business.email}?subject=${encodeURIComponent('El Silencio es tu Gurú · próxima fecha')}`
-    : '/asesorias';
+  // Las consultas llegan al panel de Adela (Clientes → Consultas), no por correo.
+  const topic = 'Escuela del Silencio · próxima fecha';
 
   return (
     <div className="space-y-24 pb-24">
@@ -45,7 +42,7 @@ export const School: React.FC = () => {
           </Editable>
           <Editable k="school.hero.motto" className="font-title text-xl text-gold-light">Tu búsqueda termina donde empieza tu silencio.</Editable>
           <div className="flex flex-wrap gap-3">
-            <Cta k="school.hero.cta_join" to={waitlist}>Quiero despertar mi maestro interno</Cta>
+            <ContactCta k="school.hero.cta_join" topic={topic}>Quiero despertar mi maestro interno</ContactCta>
             <Cta k="school.hero.cta_book" to="/tienda" variant="outline">Comenzar los 21 días</Cta>
           </div>
         </div>
@@ -111,7 +108,7 @@ export const School: React.FC = () => {
           <Editable k="school.workshop.note" className="text-xs text-mist">
             Este workshop es una experiencia completa por sí solo, pero su verdadero propósito es evaluar si tu alma está lista para el camino sagrado de 21 días.
           </Editable>
-          <Cta k="school.workshop.cta" to={waitlist}>Consultar próxima fecha / lista de espera</Cta>
+          <ContactCta k="school.workshop.cta" topic={topic}>Consultar próxima fecha / lista de espera</ContactCta>
         </div>
       </section>
 
@@ -140,7 +137,7 @@ export const School: React.FC = () => {
             <Editable k="school.mentoring.includes" className="text-sm text-bone/90 leading-7">
               {'Grupos íntimos de máximo 10 personas.\nEncuentros individuales para ajustar el proceso a tu alma.\nAcompañamiento diario durante los 21 días de silencio interior.\nSesión íntima de preguntas y respuestas con Adela.'}
             </Editable>
-            <Cta k="school.mentoring.cta" to={waitlist}>Consultar próxima fecha / lista de espera</Cta>
+            <ContactCta k="school.mentoring.cta" topic={topic}>Consultar próxima fecha / lista de espera</ContactCta>
           </div>
         </div>
       </section>

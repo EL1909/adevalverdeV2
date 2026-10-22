@@ -1,5 +1,6 @@
 // Tienda (evz_store): catálogo, descargas, planes, historial del cliente y,
 // para el staff, la gestión de productos y pedidos (ver api/staff.ts).
+import type { Framing } from './content';
 const API_BASE = '/api/store';
 
 const authHeader = (token: string) => ({ 'Authorization': `Bearer ${token}` });
@@ -19,6 +20,8 @@ export interface StoreProduct {
   category: number;
   category_name: string;
   image: string | null;
+  /** Encuadre de la portada en la tarjeta de la tienda; `{}` = centrada. */
+  image_framing: Framing | Record<string, never>;
   is_active: boolean;
   is_digital: boolean;
   requires_shipping: boolean;
@@ -27,6 +30,8 @@ export interface StoreProduct {
   slug: string;
   /** Adela elige qué productos tienen página propia. */
   has_page: boolean;
+  /** Sesión con precio, gratis una vez para quien ya compró un libro. */
+  free_with_purchase: boolean;
   /** Solo lo recibe el staff. */
   download_file?: string | null;
 }
@@ -104,6 +109,8 @@ export interface Subscription {
 
 /** Lo que se compra desde el carrito: sin planes ni asesorías. */
 export const fetchStoreProducts = () => get<StoreProduct[]>('/products/?sellable=1', null, 'Error al cargar la tienda');
+/** Todo lo publicado (incluye asesorías y planes): la tienda toma de aquí las asesorías. */
+export const fetchPublishedProducts = () => get<StoreProduct[]>('/products/', null, 'Error al cargar la tienda');
 
 /** La página propia de un producto; null si no existe, no está publicado o no tiene página. */
 export const fetchProductPage = async (slug: string) => {

@@ -20,9 +20,9 @@ const SCHOOL: NavItem[] = [
 
 // Botones dorados del sitio anterior (.btn-vip), a ambos lados de los desplegables.
 const vipClass = 'border border-gold text-gold px-5 py-2 text-xs font-bold uppercase tracking-wider transition-all hover:bg-gold hover:text-ink hover:shadow-[0_0_15px_rgba(212,175,55,0.4)]';
-// El Escáner llega con la fase 4: por ahora el enlace no lleva a ninguna parte.
+// Por ahora El Escáner abre el Test de la Coherencia (la herramienta 1 aún no existe).
 const ScannerLink: React.FC<{ className?: string }> = ({ className }) => (
-  <a href="#" onClick={e => e.preventDefault()} title="Próximamente" className={cn(vipClass, className)}>El Escáner</a>
+  <Link to="/apps/test-coherencia" className={cn(vipClass, className)}>El Escáner</Link>
 );
 const MentorshipLink: React.FC<{ className?: string }> = ({ className }) => (
   <Link to="/asesorias?sesion=mentoria" className={cn(vipClass, className)}>Mentoría VIP</Link>
@@ -45,7 +45,7 @@ const Dropdown: React.FC<{ label: string; active: boolean; children: React.React
     <div ref={ref} className="relative" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
       {/* En pantallas táctiles el toque dispara mouseenter y luego click: un toggle lo cerraría en el acto. */}
       <button onClick={() => setOpen(true)} aria-expanded={open}
-        className={cn('flex items-center gap-1 text-sm tracking-wide transition-colors', active || open ? 'text-gold' : 'text-mist hover:text-bone')}>
+        className={cn('flex items-center gap-1 text-sm uppercase tracking-wide transition-colors', active || open ? 'text-gold' : 'text-mist hover:text-bone')}>
         {label} <ChevronDown size={14} className={cn('transition-transform', open && 'rotate-180')} />
       </button>
       {open && (
@@ -58,13 +58,46 @@ const Dropdown: React.FC<{ label: string; active: boolean; children: React.React
   );
 };
 
+/**
+ * Inicio, carrito y cuenta, plegados tras una hamburguesa: se despliegan en fila
+ * hacia la izquierda al pasar el ratón, con clic o al llegar con el teclado.
+ */
+const IconTray: React.FC<{ badge: boolean; children: React.ReactNode }> = ({ badge, children }) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const { pathname, search } = useLocation();
+  useEffect(() => setOpen(false), [pathname, search]);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="flex items-center" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}
+      onBlur={e => { if (!ref.current?.contains(e.relatedTarget as Node)) setOpen(false); }}>
+      <div inert={!open} className={cn('flex items-center gap-1 py-1 overflow-hidden transition-all duration-300',
+        open ? 'max-w-[160px] opacity-100' : 'max-w-0 opacity-0')}>
+        {children}
+      </div>
+      {/* Como en Dropdown: en táctil el toque dispara mouseenter y luego click, así que el clic solo abre. */}
+      <button onClick={() => setOpen(true)} aria-expanded={open} aria-label="Accesos"
+        className={cn('relative p-2 transition-colors', open ? 'text-gold' : 'text-mist hover:text-gold')}>
+        <Menu size={22} />
+        {badge && !open && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-gold" />}
+      </button>
+    </div>
+  );
+};
+
 /** Móvil: sección plegable dentro del menú. */
 const MobileSection: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => {
   const [open, setOpen] = useState(false);
   return (
     <div>
       <button onClick={() => setOpen(o => !o)} aria-expanded={open}
-        className={cn('w-full flex items-center justify-between text-sm tracking-wide', open ? 'text-gold' : 'text-mist')}>
+        className={cn('w-full flex items-center justify-between text-sm uppercase tracking-wide', open ? 'text-gold' : 'text-mist')}>
         {label} <ChevronDown size={16} className={cn('transition-transform', open && 'rotate-180')} />
       </button>
       {open && <div className="mt-3 ml-3 pl-3 border-l border-white/10 flex flex-col gap-3">{children}</div>}
@@ -97,11 +130,13 @@ export const Layout: React.FC = () => {
 
   return (
     <div className="min-h-dvh flex flex-col">
-      <header className="sticky top-0 z-50 bg-ink/90 backdrop-blur border-b border-white/10">
+      <header className="sticky top-0 z-50 bg-ink/90 backdrop-blur border-b border-white/10 uppercase">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <Link to="/sobre-mi" className="font-title text-xl text-gold tracking-wide">Adela Valverde</Link>
+          <Link to="/sobre-mi" className="group font-title text-[22px] leading-none tracking-wide whitespace-nowrap">
+            <span className="font-bold text-white transition-colors group-hover:text-gold">Adela</span> <span className="text-gold">Valverde</span>
+          </Link>
 
-          <nav className="hidden lg:flex items-center gap-8">
+          <nav className="hidden lg:flex items-center gap-8 whitespace-nowrap">
             <ScannerLink />
             <Dropdown label="El Umbral" active={pathname === '/tienda'}>
               {umbral.length ? umbral.map(dropItem) : <p className="px-5 py-2 text-sm text-mist">Pronto</p>}
@@ -113,28 +148,31 @@ export const Layout: React.FC = () => {
             <MentorshipLink />
           </nav>
 
-          <div className="flex items-center gap-3">
-            <NavLink to="/" end className={({ isActive }) => cn('p-2', isActive ? 'text-gold' : 'text-mist hover:text-gold')} aria-label="Inicio">
-              <Home size={20} />
-            </NavLink>
-            <Link to="/carrito" className="relative p-2 text-mist hover:text-gold" aria-label="Carrito">
-              <ShoppingBag size={20} />
-              {count > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-gold text-ink text-[10px] font-bold flex items-center justify-center">{count}</span>
-              )}
-            </Link>
-            {isAuthenticated ? (
-              <NavLink to="/cuenta" title={user?.first_name || 'Mi cuenta'} aria-label="Mi cuenta"
-                className={({ isActive }) => cn('p-2', isActive ? 'text-gold' : 'text-mist hover:text-gold')}>
-                <User size={20} />
+          <div className="flex items-center gap-1">
+            <IconTray badge={count > 0}>
+              <NavLink to="/" end className={({ isActive }) => cn('p-2', isActive ? 'text-gold' : 'text-mist hover:text-gold')} aria-label="Inicio">
+                <Home size={20} />
               </NavLink>
-            ) : (
-              <button onClick={() => setAuthOpen(true)} className="text-sm border border-gold/60 text-gold px-4 py-1.5 rounded-full hover:bg-gold hover:text-ink transition-colors">
-                Entrar
-              </button>
-            )}
-            <button className="lg:hidden p-2 text-mist" onClick={() => setMenuOpen(o => !o)} aria-label="Menú">
-              {menuOpen ? <X size={22} /> : <Menu size={22} />}
+              <Link to="/carrito" className="relative p-2 text-mist hover:text-gold" aria-label="Carrito">
+                <ShoppingBag size={20} />
+                {count > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-gold text-ink text-[10px] font-bold flex items-center justify-center">{count}</span>
+                )}
+              </Link>
+              {isAuthenticated ? (
+                <NavLink to="/cuenta" title={user?.first_name || 'Mi cuenta'} aria-label="Mi cuenta"
+                  className={({ isActive }) => cn('p-2', isActive ? 'text-gold' : 'text-mist hover:text-gold')}>
+                  <User size={20} />
+                </NavLink>
+              ) : (
+                <button onClick={() => setAuthOpen(true)} title="Entrar" aria-label="Entrar" className="p-2 text-mist hover:text-gold">
+                  <User size={20} />
+                </button>
+              )}
+            </IconTray>
+            {/* La hamburguesa ya es de los accesos: el menú móvil se abre con texto. */}
+            <button className="lg:hidden flex items-center gap-1 p-2 text-xs uppercase tracking-wider text-mist hover:text-gold" onClick={() => setMenuOpen(o => !o)} aria-expanded={menuOpen}>
+              Menú {menuOpen ? <X size={16} /> : <ChevronDown size={16} />}
             </button>
           </div>
         </div>

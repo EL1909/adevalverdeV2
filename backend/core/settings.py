@@ -249,6 +249,8 @@ EVZ_BOOKING_LABEL = 'Asesoría'
 EVZ_BOOKING_EMAIL_EXTRA = 'Antes de la sesión recibirás los datos para conectarte.'
 # La sesión de cortesía (cualquier asesoría gratuita) es para quien compró un libro (producto digital).
 EVZ_BOOKING_FREE_REQUIRES_PURCHASE = 'digital'
+# Formulario de consultas (evz_crm contact/): el aviso a Adela abre la ficha en el panel.
+EVZ_CRM_CONTACT_LINK = '/cuenta?tab=clientes&client={id}'
 EVZ_BOOKING_FREE_REQUIRES_PURCHASE_MESSAGE = (
     'Esta sesión es un regalo para quienes compraron un libro. Usa el email con el que hiciste tu compra.'
 )

@@ -51,6 +51,13 @@ export const deleteCategory = (t: string, id: number) =>
 export const saveProduct = (t: string, data: FormData, id?: number) =>
   call<StoreProduct>(t, id ? `/api/store/products/${id}/` : '/api/store/products/', { method: id ? 'PATCH' : 'POST', body: data });
 
+/** Abre en una pestaña el archivo que se vende (carpeta privada: se pide con el token). */
+export const openProductFile = async (t: string, id: number) => {
+  const res = await fetch(`/api/store/products/${id}/file/`, { headers: { Authorization: `Bearer ${t}` } });
+  if (!res.ok) throw new Error('No se pudo abrir el archivo.');
+  window.open(URL.createObjectURL(await res.blob()), '_blank', 'noopener');
+};
+
 export const listOrders = (t: string) => call<Order[]>(t, '/api/store/orders/');
 export const cancelOrder = (t: string, id: number, reason: string) =>
   call<Order>(t, `/api/store/orders/${id}/cancel/`, { method: 'POST', body: json({ reason }) });
@@ -183,10 +190,12 @@ export const createManualBooking = (t: string, data: ManualBookingInput) =>
 
 export const LEAD_TAG = 'Nuevo Lead';
 export const CLIENT_TAG = 'Cliente';
+/** Mensaje del formulario de consultas sin responder (evz_crm CONTACT_TAG): se quita al responder. */
+export const CONTACT_TAG = 'Consulta pendiente';
 
 export interface CrmClient {
   id: number;
-  user: number | null;
+  user: string | null; // UUID de accounts.User
   has_account: boolean;
   name: string;
   phone: string;
@@ -220,6 +229,12 @@ export const addClientNote = (t: string, id: number, text: string) =>
   call<CrmClient>(t, `/api/crm/clients/${id}/message/`, { method: 'POST', body: json({ text }) });
 export const promoteClient = (t: string, id: number) =>
   call<CrmClient>(t, `/api/crm/clients/${id}/promote/`, { method: 'POST' });
+/** Borra la ficha; citas y pedidos se conservan sin ella. */
+export const deleteClient = (t: string, id: number) =>
+  call<void>(t, `/api/crm/clients/${id}/`, { method: 'DELETE' });
+/** Borra la cuenta del sitio. 400 si es del equipo, 409 si tiene una suscripción activa. */
+export const deleteUser = (t: string, id: string) =>
+  call<void>(t, `/api/accounts/users/${id}/`, { method: 'DELETE' });
 export const clientHistory = (t: string, id: number) => call<ClientHistory>(t, `/api/crm/clients/${id}/history/`);
 export const addAppointmentNote = (t: string, id: number, text: string) =>
   call<unknown>(t, `/api/calendars/appointments/${id}/message/`, { method: 'POST', body: json({ text }) });

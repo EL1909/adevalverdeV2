@@ -23,7 +23,12 @@ export interface Service {
   duration: string;
   minutes: number;
   image: string | null;
+  /** Con precio, pero gratis (una vez) para quien ya compró un libro: ver fetchFreeCheck. */
+  free_with_purchase: boolean;
 }
+
+/** ¿La sesión sale gratis por una compra? `purchases` (los libros) solo con sesión iniciada. */
+export interface FreeCheck { free: boolean; has_purchase: boolean; used: boolean; purchases?: string[] }
 
 export interface Slot { start: string; end: string; label: string }
 
@@ -60,6 +65,9 @@ export const fetchDays = (service: number) =>
 
 export const fetchSlots = (service: number, date: string) =>
   call<DaySlots>(`/slots/?service=${service}&date=${date}`);
+
+export const fetchFreeCheck = (service: number, email: string, token?: string | null) =>
+  call<FreeCheck>(`/free-check/?service=${service}&email=${encodeURIComponent(email)}`, { headers: headers(token) });
 
 export const createBooking = (payload: BookingPayload, token?: string | null) =>
   call<CheckoutResult>('/', { method: 'POST', headers: headers(token), body: JSON.stringify(payload) });

@@ -97,14 +97,26 @@ class UserListView(generics.ListAPIView):
     permission_classes = [permissions.IsAdminUser]
 
 
-class AdminUserUpdateView(generics.UpdateAPIView):
+class AdminUserUpdateView(generics.UpdateAPIView, generics.DestroyAPIView):
     """
-    Permite al admin editar nombre, email, teléfono y notas de cualquier cliente.
+    Permite al admin editar nombre, email, teléfono y notas de cualquier cliente,
+    o borrar su cuenta. Sus pedidos y su ficha CRM se conservan sin la cuenta
+    (SET_NULL); el panel borra la ficha aparte si así se pide.
     """
     queryset = User.objects.all().select_related('profile')
     serializer_class = AdminUserUpdateSerializer
     permission_classes = [permissions.IsAdminUser]
-    http_method_names = ['patch']
+    http_method_names = ['patch', 'delete']
+
+    def destroy(self, request, *args, **kwargs):
+        user = self.get_object()
+        if user.is_staff or user.is_superuser:
+            return Response({'error': 'Las cuentas del equipo no se borran desde el panel.'}, status=status.HTTP_400_BAD_REQUEST)
+        # Una suscripción viva sigue cobrándose en PayPal: borrarla aquí la dejaría huérfana.
+        if user.subscriptions.filter(status__in=['ACTIVE', 'SUSPENDED']).exists():
+            return Response({'error': 'Tiene una suscripción activa: cancélala antes de borrar la cuenta.'}, status=status.HTTP_409_CONFLICT)
+        user.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class AdminCreateUserView(APIView):

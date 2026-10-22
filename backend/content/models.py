@@ -16,7 +16,9 @@ key_validator = RegexValidator(
 
 def block_image_path(instance, filename):
     ext = filename.split('.')[-1]
-    return f'content/{instance.key}_{int(time.time())}.{ext}'
+    # El final de la clave (sección.imagen) basta para reconocerla; entera
+    # puede pasar de los 100 caracteres del campo.
+    return f'content/{instance.key[-60:]}_{int(time.time())}.{ext}'
 
 
 class ContentBlock(models.Model):
@@ -27,7 +29,7 @@ class ContentBlock(models.Model):
     mostrando el texto original.
     """
 
-    key = models.CharField(max_length=120, unique=True, validators=[key_validator])
+    key = models.CharField(max_length=200, unique=True, validators=[key_validator])
     text = models.TextField(blank=True)
     image = models.ImageField(upload_to=block_image_path, null=True, blank=True)
     # Encuadre de la imagen sin recortar el archivo: {'x': 0–100, 'y': 0–100, 'zoom': 1–4}.
