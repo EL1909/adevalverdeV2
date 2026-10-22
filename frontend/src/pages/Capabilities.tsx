@@ -21,6 +21,7 @@ const CAPABILITY_GROUPS: CapabilityGroup[] = [
           'Pago con PayPal o con métodos manuales (Zelle, transferencia, USDT) que se verifican antes de confirmar',
           'Compra con o sin cuenta, y recibo público con enlace seguro para consultar el pedido',
           'Descargas protegidas: cada PDF lleva un código QR único y se verifica en línea',
+          'Página propia para cada libro, con portada, compra y una presentación larga por secciones',
         ],
       },
       {
@@ -30,6 +31,14 @@ const CAPABILITY_GROUPS: CapabilityGroup[] = [
           'El horario queda retenido mientras se completa el pago',
           'Al confirmarse: evento en Google Calendar, correo con la invitación adjunta y aviso a la administración',
           'Sesiones gratuitas limitadas a una por persona, con cancelación en línea',
+          'Sesión de cortesía incluida con la compra de un libro: el sitio reconoce la compra y la reserva sale gratis',
+        ],
+      },
+      {
+        title: 'Consultas',
+        items: [
+          'Formulario de consulta dentro del sitio (ej. próxima fecha de la Escuela), sin depender del correo',
+          'Cada mensaje llega al panel con aviso inmediato al teléfono',
         ],
       },
       {
@@ -64,6 +73,7 @@ const CAPABILITY_GROUPS: CapabilityGroup[] = [
           'Pagos manuales por verificar, con la referencia que declara el cliente',
           'Pedidos con notas y cancelación',
           'Alta y edición de productos con imagen y archivo PDF',
+          'Encuadre de las portadas (mover y acercar) sin recortar la imagen original',
         ],
       },
       {
@@ -80,6 +90,7 @@ const CAPABILITY_GROUPS: CapabilityGroup[] = [
           'Cada persona que reserva queda registrada como lead y pasa a cliente con su primer pago (o a mano)',
           'Ficha por persona con datos de contacto, etiquetas, notas de seguimiento e historial de citas y pedidos',
           'Búsqueda y filtro de leads y clientes en el directorio',
+          'Bandeja de consultas pendientes: cada mensaje del sitio queda en la ficha de la persona hasta marcarlo como respondido',
         ],
       },
       {
@@ -100,6 +111,15 @@ const CAPABILITY_GROUPS: CapabilityGroup[] = [
           'Botón "Editar textos": cada texto e imagen se cambia con un clic, sin ayuda técnica',
           'Cada cambio guarda la versión anterior para poder recuperarla',
           'Páginas legales (privacidad y términos) también editables',
+          'Ajuste del encuadre de cada imagen arrastrándola y con zoom',
+        ],
+      },
+      {
+        title: 'Páginas por secciones',
+        items: [
+          'Las páginas de los libros se arman con secciones (portada, texto con imagen, recuadros, listas, oferta) que se añaden, ordenan o quitan desde el sitio',
+          'Textos con negrita, tachado y listas',
+          'Las páginas creadas antes en Gamma se trasladaron al sitio como secciones editables, con sus imágenes',
         ],
       },
     ],

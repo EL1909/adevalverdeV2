@@ -13,85 +13,16 @@ Notas AdelaValverde.info v2\
 \
 \pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
 \cf0 \
-\
-1. En el Mac: V2\
-\
-cd ~/VS-Repository/adevalverdeV2\
-sed -i '' 's/evz_backbone.git@v1.7.0/evz_backbone.git@v1.9.0/' backend/requirements.txt\
-cd backend && source venv/bin/activate && python manage.py test tests && cd ..   # deben pasar los 78\
-git add -A        # revisa antes con git status si quieres dejar fuera NotasV2.rtf\
-git commit -m "P\'e1ginas de libros desde Gamma, sesi\'f3n de cortes\'eda, consultas, ajustes de navbar y perfil"\
-git push origin main\
-2. En la VM: deploy\
-\
-cd ~/projects/adevalverdeV2/adevalverdeV2\
-./deploy.sh\
-deploy.sh instala la v1.9.0 del backbone y aplica las migraciones: claves m\'e1s largas en el CMS, encuadre de portadas y free_with_purchase. Despu\'e9s construye el frontend y reinicia gunicorn.\
-\
-Si la VM no tiene Node, ejecuta FRONTEND=skip ./deploy.sh y sube el frontend desde el Mac:\
+TOKEN EVZ = o6knmqn_PWlf7IODKdlzlKdFPVXsgv6QnKxh3cU1Tkg\
 \
 \
-cd ~/VS-Repository/adevalverdeV2/frontend && npm run build\
-rsync -av --delete dist/ esfuerzo:/home/efrain19091/projects/adevalverdeV2/adevalverdeV2/frontend/dist/\
-3. Conexi\'f3n con EsfuerzoVZ (correos de contrase\'f1a y reservas)\
-V2 env\'eda los correos a trav\'e9s de EsfuerzoVZ con EVZ_API_TOKEN. V2 no tiene instalado evz_sync, as\'ed que, por ahora, este token solo sirve para los correos.\
-\
-a) En el backend de EsfuerzoVZ, en la misma VM, genera el token:\
 \
 \
-ls ~/projects                          # localiza la carpeta de EsfuerzoVZ\
-cd <carpeta-esfuerzovz>/backend\
-source ../../venv/bin/activate         # el venv est\'e1 junto al repo, seg\'fan su deploy.sh\
-python manage.py issue_business_token <slug-del-proyecto-de-adela>\
-Si no sabes el slug, ejec\'fatalo con uno cualquiera: el error lista los disponibles. El token se muestra una sola vez. Si el proyecto ya ten\'eda uno, el anterior deja de funcionar.\
-\
-b) En V2, guarda el token y reinicia:\
-\
-\
-cd ~/projects/adevalverdeV2/adevalverdeV2/backend\
-nano .env          # a\'f1ade o sustituye: EVZ_API_TOKEN=<token>\
-                   # comprueba tambi\'e9n:  EVZ_API_URL=https://esfuerzovz.com\
-sudo systemctl restart gunicorn-adevalverdeV2.service\
-c) Pru\'e9balo: pide \'ab\'bfOlvidaste tu contrase\'f1a?\'bb en v2.adelavalverde.info. Si no llega el correo, mira el motivo:\
-\
-\
-sudo journalctl -u gunicorn-adevalverdeV2.service --since "-10 min" | grep -i -E "correo|EsfuerzoVZ"\
-4. Marcar los libros con p\'e1gina propia en la VM\
-En el panel de la VM (Mi cuenta \uc0\u8594  Tienda), marca \'abTiene p\'e1gina propia\'bb en estos productos: Japamala para dormir, Una vasija nueva, El poder del Japamala, Intervenci\'f3n Divina, El Misterio de la Sal, Jeric\'f3 y El Librito del Oro. El Silencio es tu Gur\'fa tambi\'e9n, si no lo est\'e1 ya; Adela lo crear\'e1 con el editor.\
-\
-O por consola. Los ID son los de tu base local, que es una copia de la de la VM; compru\'e9balos en el paso 5 antes de ejecutar esto:\
-\
-\
-python manage.py shell -c "from evz_store.models import Product; print(Product.objects.filter(id__in=[1,6,7,8,9,11,20,21]).update(has_page=True))"\
-5. Importar las p\'e1ginas de los libros desde Gamma\
-\
-cd ~/projects/adevalverdeV2/adevalverdeV2/backend\
-source ../../venv/bin/activate\
-\
-# Comprueba que los slugs coinciden con la lista de abajo\
-python manage.py shell -c "from evz_store.models import Product\
-for p in Product.objects.filter(has_page=True).order_by('id'): print(p.id, p.slug)"\
-\
-# Importa los 7 (descarga las im\'e1genes a la VM)\
-while read slug url; do\
-  echo "######## $slug"\
-  python manage.py import_gamma "libro.$slug" "$url" || echo "!!! FALL\'d3 $slug"\
-done <<'EOF'\
-el-librito-del-oro https://ellibritodeloro-z5yvioi.gamma.site/\
-japamala-para-dormir https://japamalaparadormir-kfpgsc8.gamma.site/\
-una-vasija-nueva https://unavasijanueva-rbbrxs0.gamma.site/\
-el-poder-del-japamala https://elpoderdeljapamala-iultjn0.gamma.site/\
-intervencion-divina https://intervenciondivina-6azv79m.gamma.site/\
-el-misterio-de-la-sal https://elmisteriodelasal-nrmfhax.gamma.site/\
-jerico-el-ultimo-enemigo https://jerico-ykmrrwq.gamma.site/\
-EOF\
-Si alg\'fan slug de la VM no coincide, cambia esa l\'ednea antes de ejecutar.\
-Si un libro ya tiene bloques, el comando se detiene y no pisa nada. Solo con --replace borrar\'eda lo que hay y volver\'eda a importar.\
-Despu\'e9s, Adela corrige cada /libro/<slug> en modo edici\'f3n: los t\'edtulos cortados, las ofertas sin t\'edtulo y los recuadros vac\'edos que vimos en el --dry-run.\
 6. Ajustes en el panel de la VM\
 Sesi\'f3n de cortes\'eda: crea el producto con su precio, una duraci\'f3n (por ejemplo \'ab15 min\'bb) y la casilla \'abGratis para quien compr\'f3 un libro (una vez)\'bb.\
 Avisos push: Adela activa el push en su m\'f3vil desde Mi cuenta \uc0\u8594  Perfil, para recibir los avisos de las consultas.\
 Mentor\'eda 1:1: en la VM ya tiene 90 min, as\'ed que no hay que tocarla.\
+\
 7. Comprobaciones r\'e1pidas\
 /asesorias: las tarjetas nuevas y el calendario plegado. Con la sesi\'f3n de cortes\'eda, el recuadro \'abTus libros\'bb.\
 /escuela: \'abQuiero despertar\'85\'bb abre el formulario. Tras enviarlo, aparece en Clientes \uc0\u8594  Consultas y llega el push.\
