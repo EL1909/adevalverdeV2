@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Landmark, Wallet } from 'lucide-react';
+import { Landmark, Smartphone, Wallet } from 'lucide-react';
 import type { CheckoutResult, ManualMethod, PaymentChoice, PaymentsConfig } from '../api/payments';
 import { PayPalButtons } from './PayPalButtons';
 import { cn } from '../lib/utils';
@@ -18,6 +18,7 @@ const ICON: Record<ManualMethod['kind'], React.ReactNode> = {
   zelle: <Wallet size={16} />,
   bank: <Landmark size={16} />,
   crypto: <Wallet size={16} />,
+  pago_movil: <Smartphone size={16} />,
 };
 
 /**

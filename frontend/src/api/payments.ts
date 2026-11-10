@@ -16,10 +16,10 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
   return data as T;
 }
 
-/** Método de pago manual (Zelle, transferencia, USDT) con los datos para pagar. */
+/** Método de pago manual (Zelle, transferencia, USDT, pago móvil) con los datos para pagar. */
 export interface ManualMethod {
   id: number;
-  kind: 'zelle' | 'bank' | 'crypto';
+  kind: 'zelle' | 'bank' | 'crypto' | 'pago_movil';
   name: string;
   details: { label: string; value: string }[];
   instructions: string;

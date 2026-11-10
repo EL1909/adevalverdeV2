@@ -10,7 +10,7 @@ que MCnails: React (PWA) + Django REST sobre evz-backbone. Plan de trabajo en
 |---|---|
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS 4, React Router |
 | Backend | Django 5.2, Django REST Framework, SimpleJWT |
-| Backbone | evz-backbone v1.9.0: `evz_core`, `evz_store`, `evz_treasury`, `evz_crm`, `evz_calendars`, `evz_payments` |
+| Backbone | evz-backbone v1.10.1: `evz_core`, `evz_store`, `evz_treasury`, `evz_crm`, `evz_calendars`, `evz_payments` |
 | Base de datos | SQLite en desarrollo, PostgreSQL en producción |
 | Pagos | PayPal |
 
